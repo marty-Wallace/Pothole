@@ -15,7 +15,6 @@ for i in range(HEIGHT):
 x,y = 0,0
 with open(FILENAME) as data:
     for line in data:
-        pxline = []
         for num in line.split(' '):
             try:
                 n = int(num)
@@ -23,10 +22,8 @@ with open(FILENAME) as data:
                 x += 1
             except:
                 continue
-            pxline.append(n)
         y += 1
         x = 0
-        im.append(pxline)
 
 least = 6
 n = 7
