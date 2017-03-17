@@ -34,6 +34,7 @@ with open(FILENAME) as data:
         y += 1
         x = 0
 
+
 for y in range(1, HEIGHT-1):
     if y % 10 == 0:
         print("y: %d" % y, file=sys.stderr)

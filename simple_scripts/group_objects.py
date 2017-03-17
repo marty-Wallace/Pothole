@@ -231,9 +231,6 @@ class Region(object):
                 
                 rect[y][x] = 3
         ''' 
-        
-        
-                        
 
         '''
         very very very bad way of doing it

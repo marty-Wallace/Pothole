@@ -53,7 +53,7 @@ object_colour_cycle = [
         (125, 75, 255),
         (75, 125, 255),
         (75, 255, 125),
-        ]
+]
 
 # Do a floodfill on the picture, set the RGB value
 def floodfill(im, y, x, new, rgb=None):
