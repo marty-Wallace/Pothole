@@ -1,0 +1,18 @@
+5008 samples x 5121 lines
+
+Outside = 5
+Road = 4
+Bad data = 3
+Cracks = 2/1/0
+RoadLine = 1
+
+Outside(5):4945990 
+Road(4):19791230 
+Three(3):1978 
+Two(2):403781 
+One(1):330970 
+Zero(0):171675
+
+
+
+
