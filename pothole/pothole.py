@@ -37,6 +37,49 @@ blurs = {
         [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1]
     ],
+    "Inner5": [
+        [1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 1],
+        [1, 2, 2, 2, 1],
+        [1, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1]
+    ],
+    "HardInner5": [
+        [1, 1, 1, 1, 1],
+        [1, 3, 3, 3, 1],
+        [1, 3, 3, 3, 1],
+        [1, 3, 3, 3, 1],
+        [1, 1, 1, 1, 1]
+    ],
+    "Simple7": [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1]
+    ],
+    "Inner7": [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 1],
+        [1, 2, 3, 3, 3, 2, 1],
+        [1, 2, 3, 3, 3, 2, 1],
+        [1, 2, 3, 3, 3, 2, 1],
+        [1, 2, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1, 1, 1]
+    ],
+    "HardInner7": [
+        [1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 1],
+        [1, 2, 4, 4, 4, 2, 1],
+        [1, 2, 4, 0, 4, 2, 1],
+        [1, 2, 4, 4, 4, 2, 1],
+        [1, 2, 2, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1, 1, 1]
+    ],
+
+
 }
 
 
@@ -83,6 +126,29 @@ class _Filter(object):
     @staticmethod
     def filter_range(x):
         return range(-(x//2), x-(x//2))
+
+
+
+class EdgeGrower(object):
+
+    """Docstring for EdgeGrower. """
+
+    def __init__(self, im):
+        """TODO: to be defined1.
+
+        :im: TODO
+
+        """
+        self._im = im
+
+
+    def update(self, n):
+        self.progress_bar.update(n+1)
+        
+
+    def grow(self, threshold):
+        pass
+        
 
 
 class SimpleBlurFilter(_Filter):
@@ -300,39 +366,45 @@ class ProgressBar(object):
 
 
 def main():
-    mask_type = 'Prewitt'
-    if len(sys.argv) > 1:
-        mask_type = sys.argv[1]
 
+    IMAGE_NAME = 'SampleSqueezed.txt'
+    if len(sys.argv) > 1:
+        IMAGE_NAME = sys.argv[1]
+
+    mask_type = 'Prewitt'
+    if len(sys.argv) > 2:
+        mask_type = sys.argv[2]
 
     mask_filter = masks[mask_type]
 
-    blur_type = 'Simple5'
-    if len(sys.argv) > 2:
-        blur_type = sys.argv[2]
+    blur_type = 'Inner5'
+    if len(sys.argv) > 3:
+        blur_type = sys.argv[3]
 
     blur_filter = blurs[blur_type]
 
-    IMAGE_NAME = 'SampleSqueezed.txt'
-    #IMAGE_NAME = 'smalldata.txt'
+    threshold=100
+    if len(sys.argv) > 4:
+        threshold = int(sys.argv[4])
+
 
     print("Loading image %s..." % IMAGE_NAME)
     im = ImageLoader(IMAGE_NAME).get_image()
     print('\n')
 
-    print("Detecting edges with %s..." % mask_type)
+    print("Applying edge filter %s..." % mask_type)
     im = EdgeFilter(im, mask_filter).filter()
     print('\n')
 
-    print("Applying Blur filter %s to edges..." % blur_type)
-    im = SimpleBlurFilter(im, blur_filter, threshold=90).filter()
+    print("Applying Blur filter %s..." % blur_type)
+    im = SimpleBlurFilter(im, blur_filter, threshold=100).filter()
     print('\n')
 
     print("Saving image")
     imsav = BlackAlphaImageSaver(im)
     print('\n')
 
-    imsav.save('%sEdgeFilterBlurred.png' % mask_type)
+    imsav.save('%s_%s_%s_%d.png' % (IMAGE_NAME.split('.')[0], mask_type, blur_type, threshold))
     print("Done...")
 
 if __name__ == '__main__':
