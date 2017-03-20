@@ -367,7 +367,7 @@ class ProgressBar(object):
 
 def main():
 
-    IMAGE_NAME = 'SampleSqueezed.txt'
+    IMAGE_NAME = 'data/road.txt'
     if len(sys.argv) > 1:
         IMAGE_NAME = sys.argv[1]
 
@@ -404,7 +404,17 @@ def main():
     imsav = BlackAlphaImageSaver(im)
     print('\n')
 
-    imsav.save('%s_%s_%s_%d.png' % (IMAGE_NAME.split('.')[0], mask_type, blur_type, threshold))
+
+    #TODO make this not crappy
+    #split unix filepaths 
+    filename = IMAGE_NAME.split('/')[-1]
+    #split windows filepaths
+    filename = filename.split(r'\\')[-1]
+    #remove file_extension
+    filename = filename.split('.')[0]
+
+    #save edge image
+    imsav.save('images/%s_%s_%s_%d.png' % (filename, mask_type, blur_type, threshold))
     print("Done...")
 
 if __name__ == '__main__':
