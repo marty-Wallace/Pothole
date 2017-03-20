@@ -2,7 +2,6 @@ import sys
 from PIL import Image
 
 
-
 masks = {
     "Sobel": [
             [[1, 0, -1], [2, 0, -2], [1, 0, -1]], 
@@ -24,6 +23,7 @@ masks = {
         ],
 }
 
+#Some simple filters for applying a blur, that may or may not be any good
 blurs = {
     "Simple3": [
         [1, 1, 1],
@@ -78,8 +78,24 @@ blurs = {
         [1, 2, 2, 2, 2, 2, 1],
         [1, 1, 1, 1, 1, 1, 1]
     ],
-
-
+    "Simple15": [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+        
 }
 
 
@@ -89,7 +105,7 @@ class _Filter(object):
 
     """Base Class for a Filter"""
 
-    def __init__(self, im, filter_matrix):
+    def __init__(self, im, filter_matrix=None):
         """Init for a base filter
 
         :im:            the image 
@@ -128,6 +144,102 @@ class _Filter(object):
         return range(-(x//2), x-(x//2))
 
 
+
+class FloodFiller(_Filter):
+
+    """Docstring for FloodFiller. """
+
+
+    def __init__(self, im, defaults={}):
+        """TODO: to be defined1.
+
+        :im: TODO
+        :road_iv: TODO
+        :line_iv: TODO
+        :outside_iv: TODO
+
+        """
+        _Filter.__init__(self, im)
+        self.defaults = defaults
+
+
+    def fill(self):
+        #TODO make object id generation not crappy
+        #for now just assign a high value
+        least = 9999
+        n = least
+        for y in range(self.height):
+            self.update(y)
+            for x in range(self.width):
+                if self.im[y][x] < least:
+                    if self.im[y][x] in self.defaults:
+                        self._floodfill(x, y, self.defaults[ self.im[y][x] ])
+                    elif self.im[y][x] not in self.defaults.values():
+                        self._floodfill(x, y, n)
+                        n += 1
+
+
+    def _floodfill(self, x, y, number):
+        """Does an iterative flood fill starting at spot x,y """
+        val = self.im[y][x]
+        q = []
+        q.append((x, y))
+        while len(q) > 0:
+            x, y = q.pop()
+            if y < 0 or y >= self.height or x < 0 or x >= self.width or self.im[y][x] != val:
+                continue
+            self.im[y][x] = number
+            q.append((x+1, y))
+            q.append((x-1, y))
+            q.append((x, y+1))
+            q.append((x, y-1))
+
+
+    def to_image(self, color_map=None, color_wheel=None):
+        if color_map is None:
+            color_map = {
+                7: (255, 255, 255),
+                8: (0, 0, 0),
+                9: (255, 255, 0),
+            }
+        if color_wheel is None:
+            color_wheel = [
+                (255, 0, 255), 
+                (0, 255, 255), 
+                (255, 0, 0), 
+                (0, 255, 0), 
+                (0, 0, 255),
+                (255, 0, 125),
+                (255, 125, 0),
+                (125, 0, 255),
+                (125, 255, 0),
+                (255, 255, 125),
+                (255, 125, 255),
+                (125, 255, 255),
+                (255, 125, 75),
+                (255, 75, 125),
+                (125, 255, 75),
+                (125, 75, 255),
+                (75, 125, 255),
+                (75, 255, 125),
+            ]
+
+        image = Image.new('RGBA', (self.width, self.height), 'BLACK')
+        color_counter = 0
+        for y in range(self.height):
+            self.update(y)
+            for x in range(self.width):
+                if self.im[y][x] not in color_map:
+                    color_map[self.im[y][x]] = color_wheel[color_counter]
+                    color_counter = (color_counter + 1) % len(color_wheel)
+                image.putpixel((x, y), color_map[self.im[y][x]])
+
+        return image
+
+
+
+
+    
 
 class EdgeGrower(object):
 
@@ -283,7 +395,6 @@ class ImageLoader(object):
                 self.im.append(data_line)
                 y += 1
                 x  = 0
-        print()
 
 
     def get_image(self):
@@ -371,40 +482,6 @@ def main():
     if len(sys.argv) > 1:
         IMAGE_NAME = sys.argv[1]
 
-    mask_type = 'Prewitt'
-    if len(sys.argv) > 2:
-        mask_type = sys.argv[2]
-
-    mask_filter = masks[mask_type]
-
-    blur_type = 'Inner5'
-    if len(sys.argv) > 3:
-        blur_type = sys.argv[3]
-
-    blur_filter = blurs[blur_type]
-
-    threshold=100
-    if len(sys.argv) > 4:
-        threshold = int(sys.argv[4])
-
-
-    print("Loading image %s..." % IMAGE_NAME)
-    im = ImageLoader(IMAGE_NAME).get_image()
-    print('\n')
-
-    print("Applying edge filter %s..." % mask_type)
-    im = EdgeFilter(im, mask_filter).filter()
-    print('\n')
-
-    print("Applying Blur filter %s..." % blur_type)
-    im = SimpleBlurFilter(im, blur_filter, threshold=100).filter()
-    print('\n')
-
-    print("Saving image")
-    imsav = BlackAlphaImageSaver(im)
-    print('\n')
-
-
     #TODO make this not crappy
     #split unix filepaths 
     filename = IMAGE_NAME.split('/')[-1]
@@ -413,10 +490,73 @@ def main():
     #remove file_extension
     filename = filename.split('.')[0]
 
-    #save edge image
-    imsav.save('images/%s_%s_%s_%d.png' % (filename, mask_type, blur_type, threshold))
-    print("Done...")
+    print("Loading image %s..." % IMAGE_NAME)
+    im = ImageLoader(IMAGE_NAME).get_image()
+    print('\n')
 
+
+    app = 'grouping'
+    if len(sys.argv) > 2:
+        app = sys.argv[2]
+
+    if app == '--edges':
+
+        mask_type = 'Prewitt'
+        if len(sys.argv) > 3:
+            mask_type = sys.argv[3]
+
+        mask_filter = masks[mask_type]
+
+        blur_type = 'Inner5'
+        if len(sys.argv) > 4:
+            blur_type = sys.argv[4]
+
+        blur_filter = blurs[blur_type]
+
+        threshold=100
+        if len(sys.argv) > 5:
+            threshold = int(sys.argv[5])
+
+        
+
+        print("Applying edge filter %s..." % mask_type)
+        im = EdgeFilter(im, mask_filter).filter()
+        print('\n')
+
+        print("Applying Blur filter %s..." % blur_type)
+        im = SimpleBlurFilter(im, blur_filter, threshold=100).filter()
+        print('\n')
+
+        print("Saving image")
+        imsav = BlackAlphaImageSaver(im)
+        print('\n')
+        
+        #save edge image
+        imsav.save('images/%s_%s_%s_%d.png' % (filename, mask_type, blur_type, threshold))
+        print("Done...")
+
+    else:
+
+        defaults = {
+                5: 7,
+                4: 8,
+                1: 9,
+        }
+
+        print("Applying floodfill object grouping...")
+        ff = FloodFiller(im, defaults)
+        ff.fill()
+        print('\n')
+        print("Applying color to image...")
+        imsav = ff.to_image()
+        print('\n')
+
+        print("Saving image...")
+        imsav.save('images/classified_%s.png' % (filename))
+        print("Done...")
+
+
+    
 if __name__ == '__main__':
     main()
 
