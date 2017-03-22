@@ -1,6 +1,8 @@
+#!/bin/python
 import sys
 from PIL import Image
 
+#TODO seperate into "class files"
 
 masks = {
     "Sobel": [
@@ -16,7 +18,7 @@ masks = {
             [[1, 1, 1], [0, 0, 0], [-1, -1, -1]]
         ],
     "Kirsch": [
-            [[5, -3, -3], [5, 0, -3], [5, -3, -3]],
+            [[5, -3, -3], [5, 0, -3], [5, -3, -3]], 
             [[-3, -3, 5], [-3, 0, 5], [-3, -3, 5]],
             [[-3, -3, -3], [-3, 0, -3], [5, 5, 5]],
             [[5, 5, 5], [-3, 0, -3], [-3, -3, -3]]
@@ -95,17 +97,14 @@ blurs = {
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ]
-        
 }
-
-
 
 
 class _Filter(object):
 
     """Base Class for a Filter"""
 
-    def __init__(self, im, filter_matrix=None):
+    def __init__(self, im, filter_matrix=None, show_progress_bar=True):
         """Init for a base filter
 
         :im:            the image 
@@ -121,10 +120,12 @@ class _Filter(object):
             self.width = 0
         self.filter_matrix = filter_matrix
         self.progress_bar = ProgressBar(self.height)
+        self.show_progress_bar = show_progress_bar
 
 
     def update(self, n):
-        self.progress_bar.update(n+1)
+        if self.show_progress_bar:
+            self.progress_bar.update(n+1)
 
     
     def new_image(self):
@@ -144,13 +145,12 @@ class _Filter(object):
         return range(-(x//2), x-(x//2))
 
 
-
 class FloodFiller(_Filter):
 
-    """Docstring for FloodFiller. """
+    """Docstring for FloodFiller. TODO"""
 
 
-    def __init__(self, im, defaults={}):
+    def __init__(self, im, defaults={}, show_progress_bar=True):
         """TODO: to be defined1.
 
         :im: TODO
@@ -159,7 +159,7 @@ class FloodFiller(_Filter):
         :outside_iv: TODO
 
         """
-        _Filter.__init__(self, im)
+        _Filter.__init__(self, im, show_progress_bar=show_progress_bar)
         self.defaults = defaults
 
 
@@ -237,48 +237,45 @@ class FloodFiller(_Filter):
         return image
 
 
-
-
-    
-
 class EdgeGrower(object):
 
-    """Docstring for EdgeGrower. """
+    """Docstring for EdgeGrower. TODO"""
 
-    def __init__(self, im):
+    def __init__(self, im, show_progress_bar=True):
         """TODO: to be defined1.
 
         :im: TODO
 
         """
         self._im = im
+        self.show_progress_bar = show_progress_bar
 
 
     def update(self, n):
-        self.progress_bar.update(n+1)
+        if self.show_progress_bar:
+            self.progress_bar.update(n+1)
         
 
     def grow(self, threshold):
         pass
-        
 
 
 class SimpleBlurFilter(_Filter):
 
-    """Docstring for SimpleBlurFilter. """
+    """Docstring for SimpleBlurFilter. TODO"""
 
-    def __init__(self, im, filter_matrix, threshold=None):
+    def __init__(self, im, filter_matrix, threshold=None, show_progress_bar=True):
         """Init for SimpleBlurFilter
 
         :im: TODO
         :filter_matrix: TODO
 
         """
-        _Filter.__init__(self, im, filter_matrix)
+        _Filter.__init__(self, im, filter_matrix, show_progress_bar=show_progress_bar)
         self.threshold = threshold
 
 
-    def filter(self):
+    def filter(self, display_averages=False):
         filter_length = len(self.filter_matrix)
         filter_total = filter_length * filter_length
         half = filter_length // 2
@@ -292,6 +289,8 @@ class SimpleBlurFilter(_Filter):
                     for b in _Filter.filter_range(filter_length):
                         total += self.im[y+a][x+b] * self.filter_matrix[a+half][b+half]
                 total //= filter_total
+                if display_averages:
+                    print("%d" % (total))
                 if self.threshold is not None:
                     if total >= self.threshold:
                         new_image[y][x] = 255
@@ -305,14 +304,14 @@ class EdgeFilter(_Filter):
 
     """Edge detection filter"""
 
-    def __init__(self, im, filter_matrix):
+    def __init__(self, im, filter_matrix, show_progress_bar=True):
         """Build an edge filter
 
         :im: TODO
         :filter_matrix: TODO
 
         """
-        _Filter.__init__(self, im, filter_matrix[0])
+        _Filter.__init__(self, im, filter_matrix[0], show_progress_bar=show_progress_bar)
 
         self.filter_matrix_left  = filter_matrix[0]
         self.filter_matrix_right = filter_matrix[1]
@@ -353,12 +352,11 @@ class EdgeFilter(_Filter):
         return new_image
 
 
-
 class ImageLoader(object):
 
     """Loads an image file into an array"""
 
-    def __init__(self, filename, delimiter=' '):
+    def __init__(self, filename, show_progress_bar=True, delimiter=' '):
         """Build an object to load various images
         :filename: the filename of the image
         :delimiter: the field delimiter on the image
@@ -368,7 +366,7 @@ class ImageLoader(object):
         self.filename = filename
         self.im = []
         self.delimiter = delimiter
-        
+        self.show_progress_bar = show_progress_bar
         self.load_image()
 
 
@@ -384,7 +382,7 @@ class ImageLoader(object):
             x,y = 0,0
             for line in data:
                 data_line = []
-                self.progress_bar.update(y+1)
+                self.update(y+1)
                 for num in line.split(self.delimiter):
                     try:
                         n = int(num)
@@ -401,21 +399,22 @@ class ImageLoader(object):
         return self.im
             
 
-    def update(self, n, c):
+    def update(self, n):
         """Display an updating progress bar in terminal
 
         :n: TODO
         :returns: TODO
 
         """
-        self.progress_bar.update(n/c)
+        if self.show_progress_bar:
+            self.progress_bar.update(n)
 
 
 class BlackAlphaImageSaver(object):
 
-    """Docstring for BlackAlphaImageSaver. """
+    """Docstring for BlackAlphaImageSaver. TODO"""
 
-    def __init__(self, im, colorstyle='RGBA' , rgba=(255, 255, 255, 0)):
+    def __init__(self, im, colorstyle='RGBA' , rgba=(255, 255, 255, 0), display_progress_bar=True):
         """TODO: to be defined1.
 
         :image: TODO
@@ -423,9 +422,12 @@ class BlackAlphaImageSaver(object):
         """
 
         self.image = Image.new(colorstyle, (len(im[0]), len(im)), rgba)
-        progress = ProgressBar(len(im))
+        self.display_progress_bar = display_progress_bar
+        
+        self.progress = ProgressBar(len(im))
         for y in range(len(im)):
-            progress.update(y+1)
+            if self.display_progress_bar:
+                self.progress.update(y+1)
             for x in range(len(im[0])):
                 self.image.putpixel((x,y), (0, 0, 0, im[y][x]))
     
@@ -436,7 +438,7 @@ class BlackAlphaImageSaver(object):
 
 class ProgressBar(object):
 
-    """Docstring for ProgressBar. """
+    """Docstring for ProgressBar. TODO"""
 
     def __init__(self, size, barLength=40):
         """TODO: to be defined1.
@@ -474,9 +476,9 @@ class ProgressBar(object):
         sys.stdout.flush()
 
 
-
-
 def main():
+
+    show_progress_bar = False
 
     IMAGE_NAME = 'data/road.txt'
     if len(sys.argv) > 1:
@@ -490,73 +492,99 @@ def main():
     #remove file_extension
     filename = filename.split('.')[0]
 
-    print("Loading image %s..." % IMAGE_NAME)
-    im = ImageLoader(IMAGE_NAME).get_image()
-    print('\n')
+    if show_progress_bar:
+        print("Loading image %s..." % IMAGE_NAME)
+    im = ImageLoader(IMAGE_NAME, show_progress_bar=show_progress_bar).get_image()
+    if show_progress_bar:
+        print('\n')
 
 
-    app = 'grouping'
+    app = ''
     if len(sys.argv) > 2:
         app = sys.argv[2]
 
     if app == '--edges':
 
-        mask_type = 'Prewitt'
+        mask_type = None
+        mask_filter = None
         if len(sys.argv) > 3:
             mask_type = sys.argv[3]
 
-        mask_filter = masks[mask_type]
+        if mask_type in masks:
+            mask_filter = masks[mask_type]
 
-        blur_type = 'Inner5'
+        blur_type = None
+        blur_filter = None
         if len(sys.argv) > 4:
             blur_type = sys.argv[4]
 
-        blur_filter = blurs[blur_type]
+        if blur_type in blurs:
+            blur_filter = blurs[blur_type]
 
         threshold=100
         if len(sys.argv) > 5:
             threshold = int(sys.argv[5])
-
         
 
-        print("Applying edge filter %s..." % mask_type)
-        im = EdgeFilter(im, mask_filter).filter()
-        print('\n')
+        if mask_filter:
+            if show_progress_bar:
+                print("Applying edge filter %s..." % mask_type)
+            im = EdgeFilter(im, mask_filter, show_progress_bar=show_progress_bar).filter()
 
-        print("Applying Blur filter %s..." % blur_type)
-        im = SimpleBlurFilter(im, blur_filter, threshold=100).filter()
-        print('\n')
 
-        print("Saving image")
+
+        # TODO 
+        # Grow edges
+        
+
+        if blur_filter:
+
+            if show_progress_bar:
+                print('\n')
+                print("Applying Blur filter %s..." % blur_type)
+            im = SimpleBlurFilter(im, blur_filter, threshold=threshold, show_progress_bar=show_progress_bar).filter(display_averages=False)
+
+        if show_progress_bar:
+            print('\n')
+            print("Saving image")
         imsav = BlackAlphaImageSaver(im)
-        print('\n')
         
         #save edge image
         imsav.save('images/%s_%s_%s_%d.png' % (filename, mask_type, blur_type, threshold))
-        print("Done...")
+        if show_progress_bar:
+            print('\n')
+            print("Done...")
 
-    else:
+    elif app == '--floodfill':
 
         defaults = {
-                5: 7,
-                4: 8,
-                1: 9,
+                5: 7, # outside of road to a 8
+                4: 8, # inside of road to an 8
+                1: 9, # line on road to a 9
         }
 
-        print("Applying floodfill object grouping...")
-        ff = FloodFiller(im, defaults)
+        color_map = {
+                7: (255, 255, 255), # outside road to white
+                8: (0, 0, 0),       # road to black 
+                9: (255, 255, 0),   # road-line to yellow
+        }
+
+        if show_progress_bar:
+            print("Applying floodfill object grouping...")
+        ff = FloodFiller(im, defaults, show_progress_bar=show_progress_bar)
         ff.fill()
-        print('\n')
-        print("Applying color to image...")
-        imsav = ff.to_image()
-        print('\n')
+        if show_progress_bar:
+            print('\n')
+            print("Applying color to image...")
+        imsav = ff.to_image(color_map=color_map)
+        if show_progress_bar:
+            print('\n')
 
         print("Saving image...")
         imsav.save('images/classified_%s.png' % (filename))
         print("Done...")
 
 
-    
 if __name__ == '__main__':
     main()
 
