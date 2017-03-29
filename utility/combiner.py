@@ -12,10 +12,12 @@ def combiner(images):
 
 def main(args):
     images = [Image.open(arg) for arg in args]
+    
+    new_image_name = '+'.join([name.split('/')[-1].split('.')[0] for name in args])
 
     image = combiner(images)
     image.show()
-    image.save('combined.png')
+    image.save('images/%s.png' % new_image_name)
 
 if __name__ == '__main__':
     import sys
