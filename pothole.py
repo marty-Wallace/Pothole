@@ -1,104 +1,146 @@
 #!/bin/python
+
 import sys
+import getopt
 from PIL import Image
 
-#TODO seperate into "class files"
+#TODO seperate into "module"
 
-masks = {
-    "Sobel": [
+edge_masks = {
+        "Sobel": [
             [[1, 0, -1], [2, 0, -2], [1, 0, -1]], 
             [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], 
             [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], 
             [[1, 2, 1], [0, 0, 0], [-1, -2, -1]]
-        ],
-    "Prewitt": [
+            ],
+        "Prewitt": [
             [[1, 0, -1], [1, 0, -1], [1, 0, -1]],
             [[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]],
             [[-1, -1, -1], [0, 0, 0], [1, 1, 1]],
             [[1, 1, 1], [0, 0, 0], [-1, -1, -1]]
-        ],
-    "Kirsch": [
+            ],
+        "Kirsch": [
             [[5, -3, -3], [5, 0, -3], [5, -3, -3]], 
             [[-3, -3, 5], [-3, 0, 5], [-3, -3, 5]],
             [[-3, -3, -3], [-3, 0, -3], [5, 5, 5]],
             [[5, 5, 5], [-3, 0, -3], [-3, -3, -3]]
-        ],
-}
+            ],
+        }
 
 #Some simple filters for applying a blur, that may or may not be any good
 blurs = {
-    "Simple3": [
-        [1, 1, 1],
-        [1, 1, 1],
-        [1, 1, 1],
-    ],
-    "Simple5": [
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1]
-    ],
-    "Inner5": [
-        [1, 1, 1, 1, 1],
-        [1, 2, 2, 2, 1],
-        [1, 2, 2, 2, 1],
-        [1, 2, 2, 2, 1],
-        [1, 1, 1, 1, 1]
-    ],
-    "HardInner5": [
-        [1, 1, 1, 1, 1],
-        [1, 3, 3, 3, 1],
-        [1, 3, 3, 3, 1],
-        [1, 3, 3, 3, 1],
-        [1, 1, 1, 1, 1]
-    ],
-    "Simple7": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1]
-    ],
-    "Inner7": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 2, 2, 2, 2, 1],
-        [1, 2, 3, 3, 3, 2, 1],
-        [1, 2, 3, 3, 3, 2, 1],
-        [1, 2, 3, 3, 3, 2, 1],
-        [1, 2, 2, 2, 2, 2, 1],
-        [1, 1, 1, 1, 1, 1, 1]
-    ],
-    "HardInner7": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 2, 2, 2, 2, 2, 1],
-        [1, 2, 4, 4, 4, 2, 1],
-        [1, 2, 4, 0, 4, 2, 1],
-        [1, 2, 4, 4, 4, 2, 1],
-        [1, 2, 2, 2, 2, 2, 1],
-        [1, 1, 1, 1, 1, 1, 1]
-    ],
-    "Simple15": [
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-    ]
-}
+        "GreyScale": [
+            42.5
+        ],
 
+        "Simple3": [
+            [1, 1, 1],
+            [1, 1, 1],
+            [1, 1, 1],
+            ],
+        "Simple5": [
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1]
+            ],
+        "Inner5": [
+            [1, 1, 1, 1, 1],
+            [1, 2, 2, 2, 1],
+            [1, 2, 2, 2, 1],
+            [1, 2, 2, 2, 1],
+            [1, 1, 1, 1, 1]
+            ],
+        "HardInner5": [
+            [1, 1, 1, 1, 1],
+            [1, 3, 3, 3, 1],
+            [1, 3, 3, 3, 1],
+            [1, 3, 3, 3, 1],
+            [1, 1, 1, 1, 1]
+            ],
+        "Simple7": [
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1]
+            ],
+        "Inner7": [
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 2, 2, 2, 2, 2, 1],
+            [1, 2, 3, 3, 3, 2, 1],
+            [1, 2, 3, 3, 3, 2, 1],
+            [1, 2, 3, 3, 3, 2, 1],
+            [1, 2, 2, 2, 2, 2, 1],
+            [1, 1, 1, 1, 1, 1, 1]
+            ],
+        "HardInner7": [
+            [1, 1, 1, 1, 1, 1, 1],
+            [1, 2, 2, 2, 2, 2, 1],
+            [1, 2, 4, 4, 4, 2, 1],
+            [1, 2, 4, 0, 4, 2, 1],
+            [1, 2, 4, 4, 4, 2, 1],
+            [1, 2, 2, 2, 2, 2, 1],
+            [1, 1, 1, 1, 1, 1, 1]
+            ],
+        "Simple15": [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+                ],
+        "Simple35": [
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            ]
+        } 
 
 class _Filter(object):
 
@@ -127,7 +169,7 @@ class _Filter(object):
         if self.show_progress_bar:
             self.progress_bar.update(n+1)
 
-    
+
     def new_image(self):
         ret = []
         for y in range(self.height):
@@ -138,7 +180,7 @@ class _Filter(object):
     @staticmethod
     def _average(s, n):
         return sum(s) / n
-    
+
 
     @staticmethod
     def filter_range(x):
@@ -150,17 +192,18 @@ class FloodFiller(_Filter):
     """Docstring for FloodFiller. TODO"""
 
 
-    def __init__(self, im, defaults={}, show_progress_bar=True):
+    def __init__(self, im, growth, defaults={}, show_progress_bar=True):
         """TODO: to be defined1.
 
         :im: TODO
-        :road_iv: TODO
-        :line_iv: TODO
-        :outside_iv: TODO
+        :growth: TODO
+        :defaults: TODO
+        :show_progress_bar: TODO
 
         """
         _Filter.__init__(self, im, show_progress_bar=show_progress_bar)
         self.defaults = defaults
+        self.growth = growth
 
 
     def fill(self):
@@ -186,45 +229,46 @@ class FloodFiller(_Filter):
         q.append((x, y))
         while len(q) > 0:
             x, y = q.pop()
-            if y < 0 or y >= self.height or x < 0 or x >= self.width or self.im[y][x] != val:
-                continue
             self.im[y][x] = number
-            q.append((x+1, y))
-            q.append((x-1, y))
-            q.append((x, y+1))
-            q.append((x, y-1))
+            for i in range(-self.growth, self.growth+1):
+                for j in range(-self.growth, self.growth+1):
+                    if i == 0 and j == 0:
+                        continue
+                    if y+j < 0 or y+j >= self.height or x+i < 0 or x+i >= self.width or self.im[y+j][x+i] != val:
+                        continue
+                    q.append((x+i, y+j))
 
 
     def to_image(self, color_map=None, color_wheel=None):
         if color_map is None:
             color_map = {
-                7: (255, 255, 255),
-                8: (0, 0, 0),
-                9: (255, 255, 0),
-            }
-        if color_wheel is None:
-            color_wheel = [
-                (255, 0, 255), 
-                (0, 255, 255), 
-                (255, 0, 0), 
-                (0, 255, 0), 
-                (0, 0, 255),
-                (255, 0, 125),
-                (255, 125, 0),
-                (125, 0, 255),
-                (125, 255, 0),
-                (255, 255, 125),
-                (255, 125, 255),
-                (125, 255, 255),
-                (255, 125, 75),
-                (255, 75, 125),
-                (125, 255, 75),
-                (125, 75, 255),
-                (75, 125, 255),
-                (75, 255, 125),
-            ]
+                    7: (255, 255, 255),
+                    8: (0, 0, 0),
+                    9: (255, 255, 0),
+                    }
+            if color_wheel is None:
+                color_wheel = [
+                        (255, 0, 255), 
+                        (0, 255, 255), 
+                        (255, 0, 0), 
+                        (0, 255, 0), 
+                        (0, 0, 255),
+                        (255, 0, 125),
+                        (255, 125, 0),
+                        (125, 0, 255),
+                        (125, 255, 0),
+                        (255, 255, 125),
+                        (255, 125, 255),
+                        (125, 255, 255),
+                        (255, 125, 75),
+                        (255, 75, 125),
+                        (125, 255, 75),
+                        (125, 75, 255),
+                        (75, 125, 255),
+                        (75, 255, 125),
+                        ]
 
-        image = Image.new('RGBA', (self.width, self.height), 'BLACK')
+                image = Image.new('RGBA', (self.width, self.height), 'BLACK')
         color_counter = 0
         for y in range(self.height):
             self.update(y)
@@ -254,7 +298,7 @@ class EdgeGrower(object):
     def update(self, n):
         if self.show_progress_bar:
             self.progress_bar.update(n+1)
-        
+
 
     def grow(self, threshold):
         pass
@@ -280,7 +324,7 @@ class SimpleBlurFilter(_Filter):
         filter_total = filter_length * filter_length
         half = filter_length // 2
         new_image = self.new_image()
-        
+
         for y in range(half, self.height-half):
             self.update(y+half)
             for x in range(half, self.width-half):
@@ -288,7 +332,7 @@ class SimpleBlurFilter(_Filter):
                 for a in _Filter.filter_range(filter_length):
                     for b in _Filter.filter_range(filter_length):
                         total += self.im[y+a][x+b] * self.filter_matrix[a+half][b+half]
-                total //= filter_total
+                total = round(total/filter_total)
                 if display_averages:
                     print("%d" % (total))
                 if self.threshold is not None:
@@ -296,7 +340,7 @@ class SimpleBlurFilter(_Filter):
                         new_image[y][x] = 255
                 else:
                     new_image[y][x] = total
-        
+
         return new_image
 
 
@@ -304,7 +348,7 @@ class EdgeFilter(_Filter):
 
     """Edge detection filter"""
 
-    def __init__(self, im, filter_matrix, show_progress_bar=True):
+    def __init__(self, im, filter_matrix, show_progress_bar=True, edge_grower=None):
         """Build an edge filter
 
         :im: TODO
@@ -317,11 +361,16 @@ class EdgeFilter(_Filter):
         self.filter_matrix_right = filter_matrix[1]
         self.filter_matrix_up    = filter_matrix[2]
         self.filter_matrix_down  = filter_matrix[3]
+        self.edge_grower = edge_grower
 
 
     def filter(self):
         filter_length = len(self.filter_matrix)
         half = filter_length//2
+        im_l = self.new_image()
+        im_r = self.new_image()
+        im_u = self.new_image()
+        im_d = self.new_image()
         new_image = self.new_image()
         sum_lookup = [0, 51, 102, 153, 204]
         for y in range(half, self.height-half):
@@ -337,17 +386,26 @@ class EdgeFilter(_Filter):
                         right += self.im[y+a][x+b] * self.filter_matrix_right[a+half][b+half]
                         up    += self.im[y+a][x+b] * self.filter_matrix_up[a+half][b+half]
                         down  += self.im[y+a][x+b] * self.filter_matrix_down[a+half][b+half]
-                
-                sumup = 0
-                if left > 0:
-                    sumup += 1
-                if right > 0:
-                    sumup += 1
-                if up > 0:
-                    sumup += 1
-                if left > 0:
-                    sumup += 1
-                new_image[y][x] = sum_lookup[sumup]
+
+                if self.edge_grower is None:
+                    sumup = 0
+                    if left > 0:
+                        sumup += 1
+                    if right > 0:
+                        sumup += 1
+                    if up > 0:
+                        sumup += 1
+                    if left > 0:
+                        sumup += 1
+                    new_image[y][x] = sum_lookup[sumup]
+                else:
+                    im_l[y][x] = left
+                    im_r[y][x] = right
+                    im_u[y][x] = up
+                    im_d[y][x] = down
+
+        if self.edge_grower is not None:
+            new_image = self.edge_grower.grow_edges(new_image, {'left': im_l, 'right': im_r, 'up': im_u, 'down': im_d } )
 
         return new_image
 
@@ -397,7 +455,7 @@ class ImageLoader(object):
 
     def get_image(self):
         return self.im
-            
+
 
     def update(self, n):
         """Display an updating progress bar in terminal
@@ -423,14 +481,14 @@ class BlackAlphaImageSaver(object):
 
         self.image = Image.new(colorstyle, (len(im[0]), len(im)), rgba)
         self.display_progress_bar = display_progress_bar
-        
+
         self.progress = ProgressBar(len(im))
         for y in range(len(im)):
             if self.display_progress_bar:
                 self.progress.update(y+1)
             for x in range(len(im[0])):
                 self.image.putpixel((x,y), (0, 0, 0, im[y][x]))
-    
+
 
     def save(self, name):
         self.image.save(name)   
@@ -452,7 +510,7 @@ class ProgressBar(object):
     def update(self, n):
         self._drawProgressBar(n / self.size, self.barLength)
 
-        
+
     @staticmethod
     def _drawProgressBar(percent_done, barLength):
         """Display an updating progress bar in a terminal
@@ -476,113 +534,164 @@ class ProgressBar(object):
         sys.stdout.flush()
 
 
+
+def usage(name, message=''):
+    if message != '':
+        print(message)
+    print()
+    print('Usage: python ', name, ' --data=sample.txt --alg=Edge <options>')
+    print('Options are:')
+    print('  -d, --data          the road data file being analyzed')
+    print('  -a, --alg           comma seperated list of algorithms to apply listed in the order of application, Edge,Blur,Floodfill... etc')
+    print('  -e, --edge-filter   the edge detection filter to apply default is Sobel. Options are Sobel, Kirsch, and Prewitt')
+    print('  -b, --blur-filter   the blue filter to apply default is Simple5. Options Simple3, Simple5, Inner5, Simple7, Inner7, HardInner7, Simple15')
+    print('  -t, --threshold     if alg=Floodfill the default is 0, else if alg=Edge then the default is None')
+    print('  -i, --image         tell the program to save an image at the end')
+    print('  -p, --progress      tell the program to display progress bars and updates')
+    print('  -g, --growth        how many pixels grace on object connectivity when doing floodfill')
+    print('  -h, --help          display usage')
+    print()
+    print()
+    exit(1)
+
+
 def main():
 
-    show_progress_bar = False
+    show_progress = False
+    data = ''
+    alg = 'edge'
+    edge_type = 'Sobel'
+    blur_type = 'Simple5'
+    threshold = None
+    growth_limit = 1
+    image = False
 
-    IMAGE_NAME = 'data/road.txt'
-    if len(sys.argv) > 1:
-        IMAGE_NAME = sys.argv[1]
+    name = sys.argv[0]
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "d::a::e:b:t:iphg:", ["data=", "alg=", "edge-filter=", "blur-filter=", "threshold=", "image", "progress", "help", "growth="])
+    except getopt.GetoptError:
+        usage(name)
 
-    #TODO make this not crappy
+    for o,a in opts:
+        if o in ('-a', '--alg'):
+            alg = a
+        elif o in ('-d', '--data'):
+            data = a
+        elif o in ('-e', '--edge-filter'):
+            edge_type = a
+        elif o in ('-b', '--blur-filter'):
+            blur_type = a
+        elif o in ('-t', '--threshold'):
+            try:
+                threshold = int(a)
+            except ValueError:
+                usage(name, "Threshold must be an integer")
+        elif o in ('-i', '--image'):
+            image = True
+        elif o in ('-p', '--progress'):
+            show_progress = True
+        elif o in ('-h', '--help'):
+            usage(name)
+        elif o in ('-g', '--growth'):
+            try:
+                growth_limit = int(a)
+            except ValueError:
+                usage(name, "Growth must be an integer")
+        else:
+            usage(name)
+
+    #TODO make this not crappy, should probably use os 
     #split unix filepaths 
-    filename = IMAGE_NAME.split('/')[-1]
+    filename = data.split('/')[-1]
     #split windows filepaths
     filename = filename.split(r'\\')[-1]
     #remove file_extension
     filename = filename.split('.')[0]
 
-    if show_progress_bar:
-        print("Loading image %s..." % IMAGE_NAME)
-    im = ImageLoader(IMAGE_NAME, show_progress_bar=show_progress_bar).get_image()
-    if show_progress_bar:
+    if edge_type not in edge_masks:
+        usage(name, "Available edge filters are " + ", ".join(edges.keys()))
+    edge_filter = edge_masks[edge_type]
+
+    if blur_type not in blurs:
+        usage(name, "Available blur filters are " + ", ".join(blurs.keys()))
+    blur_filter = blurs[blur_type]
+
+    if show_progress:
+        print('Loading Image %s \n' % data)
+
+    im = ImageLoader(data, show_progress_bar=show_progress).get_image()
+
+    if show_progress:
         print('\n')
 
+    algorithms = [s.strip() for s in alg.split(',')]
+    if not algorithms:
+        usage()
 
-    app = ''
-    if len(sys.argv) > 2:
-        app = sys.argv[2]
+    #quickly validate algs before doing any processing so we don't do too much work
+    for algorithm in algorithms:
+        if algorithm not in ('edge', 'floodfill', 'blur'):
+            usage('%s not a known algorithm know algorithms are edge, blur and floodfill' % algorithm)
 
-    if app == '--edges':
+    for algorithm in algorithms:
+        if show_progress:
+            print("Applying %s algorithm..." % algorithm)
 
-        mask_type = None
-        mask_filter = None
-        if len(sys.argv) > 3:
-            mask_type = sys.argv[3]
+        if algorithm == 'floodfill':
 
-        if mask_type in masks:
-            mask_filter = masks[mask_type]
+            defaults = {
+                    0: 7, # outer ring gets set to a zero if it's blurred
+                    5: 7, # outside of road to a 7
+                    4: 8, # inside of road to an 8
+                    1: 9, # line on road to a 9
+                    }
 
-        blur_type = None
-        blur_filter = None
-        if len(sys.argv) > 4:
-            blur_type = sys.argv[4]
-
-        if blur_type in blurs:
-            blur_filter = blurs[blur_type]
-
-        threshold=100
-        if len(sys.argv) > 5:
-            threshold = int(sys.argv[5])
-        
-
-        if mask_filter:
-            if show_progress_bar:
-                print("Applying edge filter %s..." % mask_type)
-            im = EdgeFilter(im, mask_filter, show_progress_bar=show_progress_bar).filter()
-
-
-
-        # TODO 
-        # Grow edges
-        
-
-        if blur_filter:
-
-            if show_progress_bar:
+            ff = FloodFiller(im, growth_limit, defaults, show_progress_bar=show_progress)
+            ff.fill()
+            if show_progress:
                 print('\n')
-                print("Applying Blur filter %s..." % blur_type)
-            im = SimpleBlurFilter(im, blur_filter, threshold=threshold, show_progress_bar=show_progress_bar).filter(display_averages=False)
+                print("Applying color to image...")
+            imsav = ff.to_image()
+            if show_progress:
+                print('\n')
+                print("Saving image...")
+            imsav.save('images/%s_%s_%d.png' % (filename, '+'.join(algorithms), growth_limit))
+            exit(0)
 
-        if show_progress_bar:
-            print('\n')
-            print("Saving image")
+        elif algorithm == 'edge':
+            im = EdgeFilter(im, edge_filter, show_progress_bar=show_progress).filter()
+            if show_progress:
+                print('\n')
+
+        elif algorithm == 'blur':
+            im = SimpleBlurFilter(im, blur_filter, threshold=threshold, show_progress_bar=show_progress).filter(display_averages=False)
+            if show_progress:
+                print('\n')
+
+    if edge_type is None:
+        edge_type = 'None'
+    if blur_type is None:
+        blur_type = 'None'
+    threshold = str(threshold)
+
+    if image:
+        if show_progress:
+            print('Saving images...')
         imsav = BlackAlphaImageSaver(im)
-        
         #save edge image
-        imsav.save('images/%s_%s_%s_%d.png' % (filename, mask_type, blur_type, threshold))
-        if show_progress_bar:
+        imsav.save('images/%s_%s_%s_%s.png' % (filename, edge_type, blur_type, threshold))
+        if show_progress:
             print('\n')
+            print('Done...')
+    else:
+        if show_progress:
+            print("Saving data...")
+        with open('data/%s_%s_%s_%s.txt' % (filename, edge_type, blur_type, threshold), 'w') as im_file:
+            for line in im:
+                im_file.write(' '.join([str(x) for x in line]))
+                im_file.write('\n')
+        if show_progress:
             print("Done...")
-
-    elif app == '--floodfill':
-
-        defaults = {
-                5: 7, # outside of road to a 8
-                4: 8, # inside of road to an 8
-                1: 9, # line on road to a 9
-        }
-
-        color_map = {
-                7: (255, 255, 255), # outside road to white
-                8: (0, 0, 0),       # road to black 
-                9: (255, 255, 0),   # road-line to yellow
-        }
-
-        if show_progress_bar:
-            print("Applying floodfill object grouping...")
-        ff = FloodFiller(im, defaults, show_progress_bar=show_progress_bar)
-        ff.fill()
-        if show_progress_bar:
-            print('\n')
-            print("Applying color to image...")
-        imsav = ff.to_image(color_map=color_map)
-        if show_progress_bar:
-            print('\n')
-
-        print("Saving image...")
-        imsav.save('images/classified_%s.png' % (filename))
-        print("Done...")
 
 
 if __name__ == '__main__':
