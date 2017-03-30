@@ -1,0 +1,7 @@
+[package]
+name = "par_blur"
+version = "0.1.0"
+authors = ["Martin Wallace <martin.v.wallace@ieee.org>"]
+
+[dependencies]
+rayon = "*"
