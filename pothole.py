@@ -246,29 +246,29 @@ class FloodFiller(_Filter):
                     8: (0, 0, 0),
                     9: (255, 255, 0),
                     }
-            if color_wheel is None:
-                color_wheel = [
-                        (255, 0, 255), 
-                        (0, 255, 255), 
-                        (255, 0, 0), 
-                        (0, 255, 0), 
-                        (0, 0, 255),
-                        (255, 0, 125),
-                        (255, 125, 0),
-                        (125, 0, 255),
-                        (125, 255, 0),
-                        (255, 255, 125),
-                        (255, 125, 255),
-                        (125, 255, 255),
-                        (255, 125, 75),
-                        (255, 75, 125),
-                        (125, 255, 75),
-                        (125, 75, 255),
-                        (75, 125, 255),
-                        (75, 255, 125),
-                        ]
+        if color_wheel is None:
+            color_wheel = [
+                    (255, 0, 255), 
+                    (0, 255, 255), 
+                    (255, 0, 0), 
+                    (0, 255, 0), 
+                    (0, 0, 255),
+                    (255, 0, 125),
+                    (255, 125, 0),
+                    (125, 0, 255),
+                    (125, 255, 0),
+                    (255, 255, 125),
+                    (255, 125, 255),
+                    (125, 255, 255),
+                    (255, 125, 75),
+                    (255, 75, 125),
+                    (125, 255, 75),
+                    (125, 75, 255),
+                    (75, 125, 255),
+                    (75, 255, 125),
+                    ]
 
-                image = Image.new('RGBA', (self.width, self.height), 'BLACK')
+        image = Image.new('RGBA', (self.width, self.height), 'BLACK')
         color_counter = 0
         for y in range(self.height):
             self.update(y)
@@ -630,8 +630,8 @@ def main():
 
     #quickly validate algs before doing any processing so we don't do too much work
     for algorithm in algorithms:
-        if algorithm not in ('edge', 'floodfill', 'blur'):
-            usage('%s not a known algorithm know algorithms are edge, blur and floodfill' % algorithm)
+        if algorithm not in ('edge', 'floodfill', 'blur', 'color'):
+            usage('%s not a known algorithm know algorithms are edge, blur, color and floodfill' % algorithm)
 
     for algorithm in algorithms:
         if show_progress:
@@ -655,6 +655,19 @@ def main():
             if show_progress:
                 print('\n')
                 print("Saving image...")
+            imsav.save('images/%s_%s_%d.png' % (filename, '+'.join(algorithms), growth_limit))
+            exit(0)
+
+        elif algorithm == 'color':
+            defaults = {
+                    0: 7, # outer ring gets set to a zero if it's blurred
+                    5: 7, # outside of road to a 7
+                    4: 8, # inside of road to an 8
+                    1: 9, # line on road to a 9
+                    }
+
+            ff = FloodFiller(im, growth_limit, defaults, show_progress_bar=show_progress)
+            imsav = ff.to_image(color_map={9999: (0, 0, 0)})
             imsav.save('images/%s_%s_%d.png' % (filename, '+'.join(algorithms), growth_limit))
             exit(0)
 
