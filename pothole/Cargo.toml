@@ -1,7 +1,13 @@
 [package]
-name = "par_blur"
+name = "pothole"
 version = "0.1.0"
 authors = ["Martin Wallace <martin.v.wallace@ieee.org>"]
+repository = "https://github.com/marty-Wallace/Pothole.git"
+license = "MIT"
+readme = "README.md"
+description = "Some simple image processing functions for detecting potholes"
 
 [dependencies]
-rayon = "*"
+rayon = "0.6.0"
+clap = "2.22.2"
+raster = "0.2.0"

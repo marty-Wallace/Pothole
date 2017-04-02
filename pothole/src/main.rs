@@ -1,64 +1,95 @@
 extern crate rayon; 
+extern crate raster;
+
+#[macro_use]
+extern crate clap;
 
 use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
-use std::io::BufRead;
 use std::fs::File;
-use std::env;
 use rayon::prelude::*;
+use std::collections::HashMap;
+use raster::{Image, Color};
+
 
 fn main() {
-    let input_filename = env::args().nth(1).expect("Supply input_filename as arg[1]");
-    let output_filename= env::args().nth(2).expect("Supply output_filename as arg[2]");
-    let size = match env::args().nth(3) {
-        Some(x) => x.parse::<usize>().expect("Supply integer argument for blur size as arg[3]"),
-        _ => 35,
-    };
+
+    //command line arguments setup 
+    let matches = clap_app!(pothole =>
+                            (version: "1.0")
+                            (author: "Martin Wallace <martin.v.wallace@ieee.org>")
+                            (about: "Simple image processing to detect potholes")
+                            (@arg INPUT:      -i --input     +takes_value +required "Input file")
+                            (@arg OUTPUT:     -o --output    +takes_value +required "Output file")
+                            (@arg ALGORITHMS: -a --alg       +takes_value           "Comma seperated list of algorithms to apply")
+                            (@arg BLURSIZE:   -b --blur-size +takes_value           "The size of the blur to apply")
+                            (@arg GROWTH:     -g --growth    +takes_value           "The growth limit on a floodfill")
+                            (@arg IMAGE:      -m --image                            "Change output from .txt to an image")
+                           ).get_matches();
+
+    let mut blur_size = 17_usize;
+    let mut growth    = 1_i32;
+
+    //parse command line args 
+    let input_filename  = matches.value_of("INPUT").expect("Failed to unwrap input_filename");
+    let output_filename = matches.value_of("OUTPUT").expect("Failed to unwrap output_filename");
+    let algorithms      = matches.value_of("ALGORITHMS").expect("Failed to unwrap algorithm");
+    if matches.is_present("BLURSIZE") {
+        blur_size = matches.value_of("BLURSIZE")
+            .expect("Failed to unwrap blur size")
+            .parse()
+            .expect("Blur size must be an integer");
+    }
+    if matches.is_present("GROWTH") {
+        growth = matches.value_of("GROWTH")
+            .expect("Failed to unwrap growth")
+            .parse()
+            .expect("Growth must be an integer");
+    }
+    let image = matches.is_present("IMAGE");
 
     // Set input file for reading
-    let inf = File::open(input_filename.clone())
+    let input_file = File::open(input_filename.clone())
         .expect(& format!("Unable to open file {}", input_filename.clone()));
+    let file = BufReader::new(&input_file);
 
-    let file = BufReader::new(&inf);
 
-    let of = File::create(output_filename.clone())
-        .expect(& format!("Unable to create file {}", output_filename));
-
-    let mut writer = io::BufWriter::new(&of);
-    
+    //read data from input file
     let mut im: Vec<Vec<u32>> = 
         file.lines()
         .map(|line| {
             line.unwrap()
                 .split_whitespace()
-                .map(|x| x.parse().unwrap())
+                .map(|x| x.parse().expect("Error parsing integers in input file"))
                 .collect()
         })
     .collect();
 
-    let blur = false;
+    // apply algorithms in order
+    for alg in algorithms.split(",") {
+        match alg {
+            "blur" => {
+                im = do_blur(&im, blur_size);
+            },
+            "floodfill" => {
+                simple_floodfill(&mut im, growth);
+            },
+            "None" => {},
+            _ => {
+                println!("Error algorithm {} is not recognized", alg);
+            }
+        }
 
-    let new_im;
-    if blur {
-        new_im = do_blur(&im, size)
-    }else{
-        simple_floodfill(&mut im, size as i32);
-        new_im = im;
     }
-    
-    let output = 
-        new_im.into_par_iter()
-        .map(|line| {
-            line.iter()
-                .map(|x| x.to_string())
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
 
-    let _ = writer.write_all(output.as_bytes());
+    //save data as image or as text file
+    if image {
+        save_as_image(&im, output_filename);
+    }else{
+        save_as_textfile(&im, output_filename);
+            
+    }
 }
 
 fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize) -> Vec<Vec<u32>> {
@@ -67,9 +98,9 @@ fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize) -> Vec<Vec<u32>> {
     // collect blurred image from parallel iterators
 
     (0..im.len())
-    .into_par_iter()
-    .map(|i| simple_blur(&im, i as usize, size, blur_size))
-    .collect()
+        .into_par_iter()
+        .map(|i| simple_blur(&im, i as usize, size, blur_size))
+        .collect()
 }
 
 fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize) -> Vec<u32> {
@@ -115,7 +146,6 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32) {
 }
 
 fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
-    let value = im[y][x];
     let height = im.len() as i32;
     let width = im[0].len() as i32;
 
@@ -136,12 +166,81 @@ fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
     }
 }
 
+fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
+    // collect output into a string
+    let output = 
+        im.into_par_iter()
+        .map(|line| {
+            line.iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+    .collect::<Vec<_>>()
+    .join("\n");
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let x = 1 + 1;
-        assert_eq!(x, 2);
+    //create output file
+    let output_file = File::create(output_filename.clone())
+        .expect(& format!("Unable to create file {}", output_filename));
+
+    //write output to file 
+    let mut writer = io::BufWriter::new(&output_file);
+    let _ = writer.write_all(output.as_bytes());
+}
+
+
+fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
+    let height = im.len() as i32;
+    let width = im[0].len() as i32;
+
+    let mut image = Image::blank( width, height);
+
+    let colors = [
+        Color{ r: 255, g: 0, b: 255, a:255 },
+        Color{ r: 0, g: 255, b: 255, a:255 },
+        Color{ r: 255, g: 0, b: 0, a:255 },
+        Color{ r: 0, g: 255, b: 0, a:255 },
+        Color{ r: 0, g: 0, b: 255, a:255 },
+        Color{ r: 255, g: 0, b: 125, a:255 },
+        Color{ r: 255, g: 125, b: 0, a:255 },
+        Color{ r: 125, g: 0, b: 255, a:255 },
+        Color{ r: 125, g: 255, b: 0, a:255 },
+        Color{ r: 255, g: 255, b: 125, a:255 },
+        Color{ r: 255, g: 125, b: 255, a:255 },
+        Color{ r: 125, g: 255, b: 255, a:255 },
+        Color{ r: 255, g: 125, b: 75, a:255 },
+        Color{ r: 255, g: 75, b: 125, a:255 },
+        Color{ r: 125, g: 255, b: 75, a:255 },
+        Color{ r: 125, g: 75, b: 255, a:255 },
+        Color{ r: 75, g: 125, b: 255, a:255 },
+        Color{ r: 75, g: 255, b: 125, a:255 }
+    ];
+
+    let mut n = 0;
+    let mut groups = HashMap::new();
+    groups.insert(0, Color{ r: 0, g: 0, b: 0, a: 255});
+    n += 1;
+    for y in 0..height {
+        for x in 0..width {
+            let yy = y as usize;
+            let xx = x as usize;
+            if im[yy][xx] == 9999 {
+                image.set_pixel(x, y, Color {r: 0, g: 0, b: 0, a:255}).unwrap();
+            }else{
+                let val = im[yy][xx];
+                if groups.contains_key(&val) {
+                    let color: Color = groups.get(&val).unwrap().clone();
+                    image.set_pixel(x, y, color.clone()).unwrap();
+                }else{
+                    let color = colors[n].clone();
+                    groups.insert(val, color.clone());
+                    n += 1;
+                    n = n % colors.len();
+                    image.set_pixel(x, y, color).unwrap();
+                }
+            }
+        }
     }
+
+    raster::save(&image, &output_filename).unwrap();
 }
