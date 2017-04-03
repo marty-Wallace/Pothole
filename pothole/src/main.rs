@@ -18,29 +18,37 @@ fn main() {
 
     // command line arguments setup 
     let matches = 
-        clap_app!(pothole =>
-                  (version: "1.0")
-                  (author: "Martin Wallace <martin.v.wallace@ieee.org>")
-                  (about: "Simple image processing to detect potholes")
-                  (@arg INPUT:      -i --input      +takes_value +required "Input file")
-                  (@arg OUTPUT:     -o --output     +takes_value +required "Output file")
-                  (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply")
-                  (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
-                  (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
-                  (@arg COLORSTYLE: -c --colorstyle +takes_value           "Sets the blur mode to truncate rather than round")
-                  (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
-                  (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
-                  (@arg VERBOSE:    -v --verbose                           "Display output while processing")
-                 ).get_matches();
+        clap_app!(
+         pothole =>
+          (version: "1.0")
+          (author: "Martin Wallace <martin.v.wallace@ieee.org>")
+          (about: "Simple image processing to detect potholes")
+          (@arg INPUT:      -i --input      +takes_value +required "Input file")
+          (@arg OUTPUT:     -o --output     +takes_value +required "Output file")
+          (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply")
+          (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
+          (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
+          (@arg COLORSTYLE: -c --colorstyle +takes_value           "Sets the blur mode to truncate rather than round")
+          (@arg ROADVALUE:  -r --roadvalue  +takes_value           "Sets the number representing the road in the input file")
+          (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
+          (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
+          (@arg VERBOSE:    -v --verbose                           "Display output while processing")
+         )
+        .get_matches();
 
     let mut blur_size  = 17_usize;
     let mut growth     = 1_i32;
     let mut colorstyle = "ColorWheel";
+    let mut road_value = 2;
 
     // parse command line args 
+
+    // set required options 
     let input_filename  = matches.value_of("INPUT").expect("Failed to unwrap input_filename");
     let output_filename = matches.value_of("OUTPUT").expect("Failed to unwrap output_filename");
     let algorithms      = matches.value_of("ALGORITHMS").expect("Failed to unwrap algorithm");
+
+    // set optional options if they exists
     if matches.is_present("BLURSIZE") {
         blur_size = matches.value_of("BLURSIZE")
             .expect("Failed to unwrap blur size")
@@ -60,6 +68,14 @@ fn main() {
         colorstyle = matches.value_of("COLORSTYLE")
             .expect("Failed to unwrap colorstyle")
     }
+    if matches.is_present("ROADVALUE") {
+        road_value = matches.value_of("ROADVALUE")
+            .expect("Failed to unwrap roadvalue")
+            .parse()
+            .expect("roadvalue must be an integer");
+    }
+    
+    // set flags 
     let image   = matches.is_present("IMAGE");
     let round   = !matches.is_present("TRUNCATE");
     let verbose = matches.is_present("VERBOSE");
@@ -91,7 +107,10 @@ fn main() {
                 im = do_blur(&im, blur_size, round);
             },
             "floodfill" => {
-                simple_floodfill(&mut im, growth);
+                simple_floodfill(&mut im, growth, road_value);
+            },
+            "edges" => {
+                unimplemented!();
             },
             "None" => {},
             _ => {
@@ -150,7 +169,7 @@ fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize, 
 }
 
 
-fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32) {
+fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32, road_value: u32) {
     let height = im.len();
     let width = im[0].len();
     let least = 9999;
@@ -158,8 +177,8 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32) {
     for y in 0..height {
         for x in 0..width {
             if im[y][x] < least {
-                if im[y][x] == 2{
-                    im[y][x] = 9999;
+                if im[y][x] == road_value{
+                    im[y][x] = least;
                 }else{
                     _floodfill(im, y, x, n, growth);
                     n += 1;
@@ -261,7 +280,7 @@ fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str, colorstyle: &str) {
                     let color = if colorstyle == "Data" {
                         {
                             let val = val as u8;
-                            Color{ r: val as u8, g: 255_u8-val as u8, b: 0, a: 255}
+                            Color{ r: val, g: 255_u8-val, b: 0, a: 255}
                         }
                     }else if colorstyle == "ColorWheel" {
                         colors[n].clone()
