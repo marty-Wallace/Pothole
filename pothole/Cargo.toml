@@ -10,5 +10,7 @@ description = "Some simple image processing functions for detecting potholes"
 [dependencies]
 rayon = "0.6.0"
 clap = "2.22.2"
-raster = "0.2.0"
 clt = "*"
+
+[dependencies.image]
+image = "*"

@@ -1,5 +1,5 @@
 extern crate rayon; 
-extern crate raster;
+extern crate image;
 
 #[macro_use]
 extern crate clap;
@@ -8,10 +8,10 @@ use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
+use std::path::Path;
 use std::collections::HashMap;
 
 use rayon::prelude::*;
-use raster::{Image, Color};
 
 
 fn main() {
@@ -28,7 +28,6 @@ fn main() {
           (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply")
           (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
           (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
-          (@arg COLORSTYLE: -c --colorstyle +takes_value           "Sets the blur mode to truncate rather than round")
           (@arg ROADVALUE:  -r --roadvalue  +takes_value           "Sets the number representing the road in the input file")
           (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
           (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
@@ -38,7 +37,6 @@ fn main() {
 
     let mut blur_size  = 17_usize;
     let mut growth     = 1_i32;
-    let mut colorstyle = "ColorWheel";
     let mut road_value = 2;
 
     // parse command line args 
@@ -63,10 +61,6 @@ fn main() {
             .expect("Failed to unwrap growth")
             .parse()
             .expect("Growth must be an integer");
-    }
-    if matches.is_present("COLORSTYLE") {
-        colorstyle = matches.value_of("COLORSTYLE")
-            .expect("Failed to unwrap colorstyle")
     }
     if matches.is_present("ROADVALUE") {
         road_value = matches.value_of("ROADVALUE")
@@ -124,7 +118,7 @@ fn main() {
         println!("Saving data into {}...\n", output_filename);
     }
     if image {
-        save_as_image(&im, output_filename, colorstyle);
+        save_as_image(&im, output_filename);
     }else{
         save_as_textfile(&im, output_filename);
 
@@ -145,14 +139,14 @@ fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize, round: bool) -> Vec<Vec<u32>> {
 fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize, round: bool) -> Vec<u32> {
     let length = im.len() as i32;
     let mut ret = vec![0; size];
-    let half = (blur_size/2) as i32;
+    let half_length = (blur_size/2) as i32;
     let index = index as i32;
     let size = size as i32;
     for i in 0..size {
         let mut total = 0_u64;
         let mut count = 0_u64;
-        for a in -half..half+1 {
-            for b in -half..half+1 {
+        for a in -half_length..half_length+1 {
+            for b in -half_length..half_length+1 {
                 if index+a >= 0 && index+a < length && i+b >= 0 && i+b < size {
                     count += 1;
                     total += im[(index+a) as usize][(i+b) as usize] as u64;
@@ -221,7 +215,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
                 .collect::<Vec<_>>()
                 .join(" ")
         })
-    .collect::<Vec<_>>()
+        .collect::<Vec<_>>()
         .join("\n");
 
     //create output file
@@ -234,68 +228,58 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
 }
 
 
-fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str, colorstyle: &str) {
-    let height = im.len() as i32;
-    let width = im[0].len() as i32;
+fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
+    let height = im.len() as u32;
+    let width = im[0].len() as u32;
 
-    let mut image = Image::blank( width, height);
+    let mut image = image::ImageBuffer::new(width, height);
 
     let colors = [
-        Color{ r: 255, g: 0, b: 255, a:255 },
-        Color{ r: 0, g: 255, b: 255, a:255 },
-        Color{ r: 255, g: 0, b: 0, a:255 },
-        Color{ r: 0, g: 255, b: 0, a:255 },
-        Color{ r: 0, g: 0, b: 255, a:255 },
-        Color{ r: 255, g: 0, b: 125, a:255 },
-        Color{ r: 255, g: 125, b: 0, a:255 },
-        Color{ r: 125, g: 0, b: 255, a:255 },
-        Color{ r: 125, g: 255, b: 0, a:255 },
-        Color{ r: 255, g: 255, b: 125, a:255 },
-        Color{ r: 255, g: 125, b: 255, a:255 },
-        Color{ r: 125, g: 255, b: 255, a:255 },
-        Color{ r: 255, g: 125, b: 75, a:255 },
-        Color{ r: 255, g: 75, b: 125, a:255 },
-        Color{ r: 125, g: 255, b: 75, a:255 },
-        Color{ r: 125, g: 75, b: 255, a:255 },
-        Color{ r: 75, g: 125, b: 255, a:255 },
-        Color{ r: 75, g: 255, b: 125, a:255 }
+        [ 255_u8, 0,   255 ],
+        [ 0,   255, 255 ],
+        [ 255, 0,   0   ],
+        [ 0,   255, 0   ],
+        [ 0,   0,   255 ],
+        [ 255, 0,   125 ],
+        [ 255, 125, 0   ],
+        [ 125, 0,   255 ],
+        [ 125, 255, 0   ],
+        [ 255, 255, 125 ],
+        [ 255, 125, 255 ],
+        [ 125, 255, 255 ],
+        [ 255, 125, 75  ],
+        [ 255, 75,  125 ],
+        [ 125, 255, 75  ],
+        [ 125, 75,  255 ],
+        [ 75,  125, 255 ],
+        [ 75,  255, 125 ],
+
+        // last color is black, use this for the road pxs
+        [ 0,   0,   0   ]
     ];
 
     let mut n = 0;
     let mut groups = HashMap::new();
-    groups.insert(255, Color{ r: 0, g: 0, b: 0, a: 255});
-    n += 1;
+    groups.insert(9999, colors.len()-1);
     for y in 0..height {
         for x in 0..width {
-            let yy = y as usize;
-            let xx = x as usize;
-            if im[yy][xx] == 9999{
-                image.set_pixel(x, y, Color {r: 0, g: 0, b: 0, a:255}).unwrap();
-            }else{
-                let val = im[yy][xx];
-                if groups.contains_key(&val) {
-                    let color: Color = groups.get(&val).unwrap().clone();
-                    image.set_pixel(x, y, color.clone()).unwrap();
-                }else{
-                    let color = if colorstyle == "Data" {
-                        {
-                            let val = val as u8;
-                            Color{ r: val, g: 255_u8-val, b: 0, a: 255}
-                        }
-                    }else if colorstyle == "ColorWheel" {
-                        colors[n].clone()
-                    }else {
-                        unimplemented!();
-                    };
-
-                    groups.insert(val, color.clone());
-                    n += 1;
-                    n = n % colors.len();
-                    image.set_pixel(x, y, color).unwrap();
+            let val = im[y as usize][x as usize] as u8;
+            groups.entry(val).or_insert_with(|| {
+                let x = n;
+                n = (n+1) % (colors.len() -1);
+                x
+            });
+            match groups.get(&val){
+                Some(index) => {
+                    image.put_pixel(x, y, image::Rgb(colors[*index]));
+                },
+                None => {
+                    unreachable!();
                 }
             }
         }
     }
 
-    raster::save(&image, &output_filename).unwrap();
+    let ref mut fout = File::create(&Path::new(&output_filename)).unwrap();
+    let _ = image::ImageRgb8(image).save(fout, image::PNG);
 }
