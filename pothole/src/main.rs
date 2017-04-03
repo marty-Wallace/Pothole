@@ -8,30 +8,36 @@ use std::io;
 use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
-use rayon::prelude::*;
 use std::collections::HashMap;
+
+use rayon::prelude::*;
 use raster::{Image, Color};
 
 
 fn main() {
 
-    //command line arguments setup 
-    let matches = clap_app!(pothole =>
-                            (version: "1.0")
-                            (author: "Martin Wallace <martin.v.wallace@ieee.org>")
-                            (about: "Simple image processing to detect potholes")
-                            (@arg INPUT:      -i --input     +takes_value +required "Input file")
-                            (@arg OUTPUT:     -o --output    +takes_value +required "Output file")
-                            (@arg ALGORITHMS: -a --alg       +takes_value           "Comma seperated list of algorithms to apply")
-                            (@arg BLURSIZE:   -b --blur-size +takes_value           "The size of the blur to apply")
-                            (@arg GROWTH:     -g --growth    +takes_value           "The growth limit on a floodfill")
-                            (@arg IMAGE:      -m --image                            "Change output from .txt to an image")
-                           ).get_matches();
+    // command line arguments setup 
+    let matches = 
+        clap_app!(pothole =>
+                  (version: "1.0")
+                  (author: "Martin Wallace <martin.v.wallace@ieee.org>")
+                  (about: "Simple image processing to detect potholes")
+                  (@arg INPUT:      -i --input      +takes_value +required "Input file")
+                  (@arg OUTPUT:     -o --output     +takes_value +required "Output file")
+                  (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply")
+                  (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
+                  (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
+                  (@arg COLORSTYLE: -c --colorstyle +takes_value           "Sets the blur mode to truncate rather than round")
+                  (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
+                  (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
+                  (@arg VERBOSE:    -v --verbose                           "Display output while processing")
+                 ).get_matches();
 
-    let mut blur_size = 17_usize;
-    let mut growth    = 1_i32;
+    let mut blur_size  = 17_usize;
+    let mut growth     = 1_i32;
+    let mut colorstyle = "ColorWheel";
 
-    //parse command line args 
+    // parse command line args 
     let input_filename  = matches.value_of("INPUT").expect("Failed to unwrap input_filename");
     let output_filename = matches.value_of("OUTPUT").expect("Failed to unwrap output_filename");
     let algorithms      = matches.value_of("ALGORITHMS").expect("Failed to unwrap algorithm");
@@ -40,6 +46,9 @@ fn main() {
             .expect("Failed to unwrap blur size")
             .parse()
             .expect("Blur size must be an integer");
+        if blur_size % 2 == 0 {
+            panic!("Blur size must be an odd number");
+        }
     }
     if matches.is_present("GROWTH") {
         growth = matches.value_of("GROWTH")
@@ -47,7 +56,13 @@ fn main() {
             .parse()
             .expect("Growth must be an integer");
     }
-    let image = matches.is_present("IMAGE");
+    if matches.is_present("COLORSTYLE") {
+        colorstyle = matches.value_of("COLORSTYLE")
+            .expect("Failed to unwrap colorstyle")
+    }
+    let image   = matches.is_present("IMAGE");
+    let round   = !matches.is_present("TRUNCATE");
+    let verbose = matches.is_present("VERBOSE");
 
     // Set input file for reading
     let input_file = File::open(input_filename.clone())
@@ -55,7 +70,7 @@ fn main() {
     let file = BufReader::new(&input_file);
 
 
-    //read data from input file
+    // read data from input file
     let mut im: Vec<Vec<u32>> = 
         file.lines()
         .map(|line| {
@@ -68,42 +83,47 @@ fn main() {
 
     // apply algorithms in order
     for alg in algorithms.split(",") {
+        if verbose  {
+            println!("Executing {}...\n", alg);
+        }
         match alg {
             "blur" => {
-                im = do_blur(&im, blur_size);
+                im = do_blur(&im, blur_size, round);
             },
             "floodfill" => {
                 simple_floodfill(&mut im, growth);
             },
             "None" => {},
             _ => {
-                println!("Error algorithm {} is not recognized", alg);
+                panic!("Error algorithm {} is not recognized", alg);
             }
         }
-
     }
 
     //save data as image or as text file
+    if verbose {
+        println!("Saving data into {}...\n", output_filename);
+    }
     if image {
-        save_as_image(&im, output_filename);
+        save_as_image(&im, output_filename, colorstyle);
     }else{
         save_as_textfile(&im, output_filename);
-            
+
     }
 }
 
-fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize) -> Vec<Vec<u32>> {
+fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize, round: bool) -> Vec<Vec<u32>> {
 
     let size = im[0].len();
     // collect blurred image from parallel iterators
 
     (0..im.len())
         .into_par_iter()
-        .map(|i| simple_blur(&im, i as usize, size, blur_size))
+        .map(|i| simple_blur(&im, i as usize, size, blur_size, round))
         .collect()
 }
 
-fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize) -> Vec<u32> {
+fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize, round: bool) -> Vec<u32> {
     let length = im.len() as i32;
     let mut ret = vec![0; size];
     let half = (blur_size/2) as i32;
@@ -120,7 +140,11 @@ fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize) 
                 }
             }
         }
-        ret[i as usize] = (total as f64 / count as f64).round() as u32;
+        if round {
+            ret[i as usize] = (total as f64 / count as f64).round() as u32;
+        }else{
+            ret[i as usize] = (total / count) as u32;
+        }
     }
     ret
 }
@@ -134,7 +158,7 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32) {
     for y in 0..height {
         for x in 0..width {
             if im[y][x] < least {
-                if im[y][x] == 127 {
+                if im[y][x] == 2{
                     im[y][x] = 9999;
                 }else{
                     _floodfill(im, y, x, n, growth);
@@ -146,19 +170,21 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32) {
 }
 
 fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
+    let val = im[y][x];
     let height = im.len() as i32;
     let width = im[0].len() as i32;
 
     let mut q = Vec::new();
     q.push((x, y));
+    im[y][x] = n;
 
     while let Some((x,y)) = q.pop() {
-        im[y][x] = n;
         for i in -growth..growth+1 {
             for j in -growth..growth+1 {
                 let x = x as i32;
                 let y = y as i32;
-                if y+j >= 0 && y+j < height && x+i >= 0 && x+i < width && im[(y+j)as usize][(x+i) as usize] != 9999 && im[(y+j) as usize][(x+i) as usize] != 127 {
+                if y+j >= 0 && y+j < height && x+i >= 0 && x+i < width && im[(y+j)as usize][(x+i) as usize] == val {
+                    im[(y+j) as usize][(x+i) as usize] = n;
                     q.push(((x+i) as usize, (y+j) as usize));
                 }
             }
@@ -177,7 +203,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
                 .join(" ")
         })
     .collect::<Vec<_>>()
-    .join("\n");
+        .join("\n");
 
     //create output file
     let output_file = File::create(output_filename.clone())
@@ -189,7 +215,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
 }
 
 
-fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
+fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str, colorstyle: &str) {
     let height = im.len() as i32;
     let width = im[0].len() as i32;
 
@@ -218,13 +244,13 @@ fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
 
     let mut n = 0;
     let mut groups = HashMap::new();
-    groups.insert(0, Color{ r: 0, g: 0, b: 0, a: 255});
+    groups.insert(255, Color{ r: 0, g: 0, b: 0, a: 255});
     n += 1;
     for y in 0..height {
         for x in 0..width {
             let yy = y as usize;
             let xx = x as usize;
-            if im[yy][xx] == 9999 {
+            if im[yy][xx] == 9999{
                 image.set_pixel(x, y, Color {r: 0, g: 0, b: 0, a:255}).unwrap();
             }else{
                 let val = im[yy][xx];
@@ -232,7 +258,17 @@ fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
                     let color: Color = groups.get(&val).unwrap().clone();
                     image.set_pixel(x, y, color.clone()).unwrap();
                 }else{
-                    let color = colors[n].clone();
+                    let color = if colorstyle == "Data" {
+                        {
+                            let val = val as u8;
+                            Color{ r: val as u8, g: 255_u8-val as u8, b: 0, a: 255}
+                        }
+                    }else if colorstyle == "ColorWheel" {
+                        colors[n].clone()
+                    }else {
+                        unimplemented!();
+                    };
+
                     groups.insert(val, color.clone());
                     n += 1;
                     n = n % colors.len();
