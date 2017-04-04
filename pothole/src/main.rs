@@ -19,25 +19,31 @@ fn main() {
     // command line arguments setup 
     let matches = 
         clap_app!(
-         pothole =>
-          (version: "1.0")
-          (author: "Martin Wallace <martin.v.wallace@ieee.org>")
-          (about: "Simple image processing to detect potholes")
-          (@arg INPUT:      -i --input      +takes_value +required "Input file")
-          (@arg OUTPUT:     -o --output     +takes_value +required "Output file")
-          (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply")
-          (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
-          (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
-          (@arg ROADVALUE:  -r --roadvalue  +takes_value           "Sets the number representing the road in the input file")
-          (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
-          (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
-          (@arg VERBOSE:    -v --verbose                           "Display output while processing")
-         )
+            pothole =>
+            (version: "1.0")
+            (author: "Martin Wallace <martin.v.wallace@ieee.org>")
+            (about: "Simple image processing to detect potholes")
+            (@arg INPUT:      -i --input      +takes_value +required "Input file")
+            (@arg OUTPUT:     -o --output     +takes_value +required "Output file")
+            (@arg ALGORITHMS: -a --alg        +takes_value           "Comma seperated list of algorithms to apply (blur,floodfill,floodsame,None)")
+            (@arg BLURSIZE:   -b --blursize   +takes_value           "The size of the blur to apply")
+            (@arg GROWTH:     -g --growth     +takes_value           "The growth limit on a floodfill")
+            (@arg ROADVALUE:  -r --roadvalue  +takes_value           "Sets the number representing the road in the input file")
+            (@arg SIZEMIN:    -s --sizemin    +takes_value           "Sets the minimum size for a group in the output file")
+            (@arg SAMEGROWTH: -h --samegrowth +takes_value           "Sets the growth size for a floodsame")
+
+            (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
+            (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
+            (@arg VERBOSE:    -v --verbose                           "Display output while processing")
+            )
         .get_matches();
 
+    // good starting values
     let mut blur_size  = 17_usize;
-    let mut growth     = 1_i32;
-    let mut road_value = 2;
+    let mut growth     = 100_i32;
+    let mut road_value = 127;
+    let mut size_threshold = 12;
+    let mut same_growth = 20;
 
     // parse command line args 
 
@@ -68,7 +74,19 @@ fn main() {
             .parse()
             .expect("roadvalue must be an integer");
     }
-    
+    if matches.is_present("SIZEMIN") {
+        size_threshold = matches.value_of("SIZEMIN")
+            .expect("Failed to unwrap sizemin")
+            .parse()
+            .expect("sizemin must be an integer");
+    }
+    if matches.is_present("SAMEGROWTH") {
+        same_growth = matches.value_of("SAMEGROWTH")
+            .expect("Failed to unwrap samegrowth")
+            .parse()
+            .expect("samegrowth must be an integer");
+    }
+
     // set flags 
     let image   = matches.is_present("IMAGE");
     let round   = !matches.is_present("TRUNCATE");
@@ -101,7 +119,10 @@ fn main() {
                 im = do_blur(&im, blur_size, round);
             },
             "floodfill" => {
-                simple_floodfill(&mut im, growth, road_value);
+                simple_floodfill(&mut im, growth, road_value, 0, false);
+            },
+            "floodsame" => {
+                simple_floodfill(&mut im, same_growth, road_value, size_threshold, true);
             },
             "edges" => {
                 unimplemented!();
@@ -163,10 +184,14 @@ fn simple_blur(im: &Vec<Vec<u32>>, index: usize, size: usize, blur_size: usize, 
 }
 
 
-fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32, road_value: u32) {
+fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32, road_value: u32, size_threshold: usize, floodsame: bool) {
     let height = im.len();
     let width = im[0].len();
-    let least = 9999;
+    let least = if floodsame {
+        road_value
+    }else{
+        9999
+    };
     let mut n = least+1;
     for y in 0..height {
         for x in 0..width {
@@ -174,15 +199,17 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32, road_value: u32) {
                 if im[y][x] == road_value{
                     im[y][x] = least;
                 }else{
-                    _floodfill(im, y, x, n, growth);
-                    n += 1;
+                    _floodfill(im, y, x, n, growth, size_threshold, road_value);
+                    if !floodsame {
+                        n += 1;
+                    }
                 }
             }
         }
     }
 }
 
-fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
+fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32, size_threshold: usize, road_value: u32) {
     let val = im[y][x];
     let height = im.len() as i32;
     let width = im[0].len() as i32;
@@ -190,8 +217,10 @@ fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
     let mut q = Vec::new();
     q.push((x, y));
     im[y][x] = n;
+    let mut count = 0;
 
     while let Some((x,y)) = q.pop() {
+        count += 1;
         for i in -growth..growth+1 {
             for j in -growth..growth+1 {
                 let x = x as i32;
@@ -202,6 +231,10 @@ fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32) {
                 }
             }
         }
+    }
+    if n != road_value && count < size_threshold {
+        //if it's smaller than the threshold value then kill it
+        _floodfill(im, y, x, road_value, growth, size_threshold, road_value);
     }
 }
 
@@ -215,7 +248,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
                 .collect::<Vec<_>>()
                 .join(" ")
         })
-        .collect::<Vec<_>>()
+    .collect::<Vec<_>>()
         .join("\n");
 
     //create output file
@@ -256,30 +289,30 @@ fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
 
         // last color is black, use this for the road pxs
         [ 0,   0,   0   ]
-    ];
+            ];
 
-    let mut n = 0;
-    let mut groups = HashMap::new();
-    groups.insert(9999, colors.len()-1);
-    for y in 0..height {
-        for x in 0..width {
-            let val = im[y as usize][x as usize] as u8;
-            groups.entry(val).or_insert_with(|| {
-                let x = n;
-                n = (n+1) % (colors.len() -1);
-                x
-            });
-            match groups.get(&val){
-                Some(index) => {
-                    image.put_pixel(x, y, image::Rgb(colors[*index]));
-                },
-                None => {
-                    unreachable!();
+        let mut n = 0;
+        let mut groups = HashMap::new();
+        groups.insert(9999, colors.len()-1);
+        for y in 0..height {
+            for x in 0..width {
+                let val = im[y as usize][x as usize] as u8;
+                groups.entry(val).or_insert_with(|| {
+                    let x = n;
+                    n = (n+1) % (colors.len() -1);
+                    x
+                });
+                match groups.get(&val){
+                    Some(index) => {
+                        image.put_pixel(x, y, image::Rgb(colors[*index]));
+                    },
+                    None => {
+                        unreachable!();
+                    }
                 }
             }
         }
-    }
 
-    let ref mut fout = File::create(&Path::new(&output_filename)).unwrap();
-    let _ = image::ImageRgb8(image).save(fout, image::PNG);
+        let ref mut fout = File::create(&Path::new(&output_filename)).unwrap();
+        let _ = image::ImageRgb8(image).save(fout, image::PNG);
 }
