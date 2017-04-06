@@ -139,7 +139,7 @@ fn main() {
         println!("Saving data into {}...\n", output_filename);
     }
     if image {
-        save_as_image(&im, output_filename);
+        save_as_image(&im, output_filename, road_value);
     }else{
         save_as_textfile(&im, output_filename);
 
@@ -261,7 +261,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
 }
 
 
-fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
+fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str, road_value: u32) {
     let height = im.len() as u32;
     let width = im[0].len() as u32;
 
@@ -294,9 +294,10 @@ fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str) {
         let mut n = 0;
         let mut groups = HashMap::new();
         groups.insert(9999, colors.len()-1);
+        groups.insert(road_value, colors.len()-1);
         for y in 0..height {
             for x in 0..width {
-                let val = im[y as usize][x as usize] as u8;
+                let val = im[y as usize][x as usize];
                 groups.entry(val).or_insert_with(|| {
                     let x = n;
                     n = (n+1) % (colors.len() -1);
