@@ -20,7 +20,7 @@ fn main() {
     let matches = 
         clap_app!(
             pothole =>
-            (version: "1.0")
+            (version: "0.1.1")
             (author: "Martin Wallace <martin.v.wallace@ieee.org>")
             (about: "Simple image processing to detect potholes")
             (@arg INPUT:      -i --input      +takes_value +required "Input file")
