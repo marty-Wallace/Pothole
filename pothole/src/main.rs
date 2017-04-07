@@ -16,7 +16,7 @@ use rayon::prelude::*;
 
 fn main() {
 
-    // command line arguments setup 
+    // command line arguments setup using clap crate 
     let matches = 
         clap_app!(
             pothole =>
@@ -31,19 +31,23 @@ fn main() {
             (@arg ROADVALUE:  -r --roadvalue  +takes_value           "Sets the number representing the road in the input file")
             (@arg SIZEMIN:    -s --sizemin    +takes_value           "Sets the minimum size for a group in the output file")
             (@arg SAMEGROWTH: -h --samegrowth +takes_value           "Sets the growth size for a floodsame")
+            (@arg ITERATIONS: -n --iterations +takes_value           "Sets the number of iterations to apply floodsame for")
+            (@arg ITERGROWTH: -q --itergrowth +takes_value           "Sets the growth of each floodsame iteration")
 
-            (@arg IMAGE:      -m --image                             "Change output from .txt to an image")
+            (@arg IMAGE:      -m --image                             "Save output as image rather than text file")
             (@arg TRUNCATE:   -t --truncate                          "Sets the blur mode to truncate rather than round")
             (@arg VERBOSE:    -v --verbose                           "Display output while processing")
             )
         .get_matches();
 
-    // good starting values
-    let mut blur_size  = 17_usize;
-    let mut growth     = 100_i32;
-    let mut road_value = 127;
+    // good starting values for input parameters
+    let mut blur_size      = 17;
+    let mut growth         = 100;
+    let mut road_value     = 127;
     let mut size_threshold = 12;
-    let mut same_growth = 20;
+    let mut same_growth    = 20;
+    let mut iterations     = 1;
+    let mut itergrowth     = 2;
 
     // parse command line args 
 
@@ -86,11 +90,23 @@ fn main() {
             .parse()
             .expect("samegrowth must be an integer");
     }
+    if matches.is_present("ITERATIONS") {
+        iterations = matches.value_of("ITERATIONS")
+            .expect("Failed to unwrap iterations")
+            .parse()
+            .expect("Failed to parse iterations")
+    }
+    if matches.is_present("ITERGROWTH") {
+        itergrowth = matches.value_of("ITERGROWTH")
+            .expect("Failed to unwrap itergrowth")
+            .parse()
+            .expect("Failed to parse itergrowth")
+    }
 
     // set flags 
-    let image   = matches.is_present("IMAGE");
+    let image   =  matches.is_present("IMAGE");
     let round   = !matches.is_present("TRUNCATE");
-    let verbose = matches.is_present("VERBOSE");
+    let verbose =  matches.is_present("VERBOSE");
 
     // Set input file for reading
     let input_file = File::open(input_filename.clone())
@@ -111,9 +127,12 @@ fn main() {
 
     // apply algorithms in order
     for alg in algorithms.split(",") {
+
+        // print out current action
         if verbose  {
             println!("Executing {}...\n", alg);
         }
+
         match alg {
             "blur" => {
                 im = do_blur(&im, blur_size, round);
@@ -122,7 +141,11 @@ fn main() {
                 simple_floodfill(&mut im, growth, road_value, 0, false);
             },
             "floodsame" => {
-                simple_floodfill(&mut im, same_growth, road_value, size_threshold, true);
+                for _ in 0..iterations {
+                    simple_floodfill(&mut im, same_growth, road_value, size_threshold, true);
+                    same_growth *= itergrowth;
+                    size_threshold *= itergrowth as usize;
+                }
             },
             "edges" => {
                 unimplemented!();
@@ -132,25 +155,27 @@ fn main() {
                 panic!("Error algorithm {} is not recognized", alg);
             }
         }
+
     }
 
-    //save data as image or as text file
+    // print out current action
     if verbose {
         println!("Saving data into {}...\n", output_filename);
     }
+
+    //save data as image or as text file
     if image {
         save_as_image(&im, output_filename, road_value);
     }else{
         save_as_textfile(&im, output_filename);
-
     }
 }
 
 fn do_blur(im: &Vec<Vec<u32>>, blur_size: usize, round: bool) -> Vec<Vec<u32>> {
 
     let size = im[0].len();
-    // collect blurred image from parallel iterators
 
+    // collect blurred image from parallel iterators
     (0..im.len())
         .into_par_iter()
         .map(|i| simple_blur(&im, i as usize, size, blur_size, round))
@@ -209,35 +234,63 @@ fn simple_floodfill(im: &mut Vec<Vec<u32>>, growth: i32, road_value: u32, size_t
     }
 }
 
-fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, n: u32, growth: i32, size_threshold: usize, road_value: u32) {
+/// Does a floodfill with a single value from a single starting point.
+/// Accepts a growth value which is the distance surrounding the current pixel to check for others
+/// to fill.
+/// Size threshold is the size limit on a single group. If the group is under the limit then kill
+/// it.
+/// target_value is the value we will set each pixel we fill to.
+fn _floodfill(im: &mut Vec<Vec<u32>>, y: usize, x: usize, target_value: u32, growth: i32, size_threshold: usize, road_value: u32) {
+    
+    // we will fill all other adjacent spots with the same value as this one
     let val = im[y][x];
     let height = im.len() as i32;
     let width = im[0].len() as i32;
 
-    let mut q = Vec::new();
-    q.push((x, y));
-    im[y][x] = n;
+    // create a queue and push the first value in
+    let mut stack = Vec::new();
+    stack.push((x, y));
+
+    // set initial value to target_value
+    im[y][x] = target_value;
+
+    // count the total number of pixels in the group
     let mut count = 0;
 
-    while let Some((x,y)) = q.pop() {
+    // while there are still values on the stack, loop
+    while let Some((x,y)) = stack.pop() {
+        // increment number pixels contained in this grouping
         count += 1;
+        // loop through surrounding valid pixels
         for i in -growth..growth+1 {
             for j in -growth..growth+1 {
+                // cast x,y inside scope for easier maths (otherwise we would have to cast to an
+                // i32 each time we added)
                 let x = x as i32;
                 let y = y as i32;
-                if y+j >= 0 && y+j < height && x+i >= 0 && x+i < width && im[(y+j)as usize][(x+i) as usize] == val {
-                    im[(y+j) as usize][(x+i) as usize] = n;
-                    q.push(((x+i) as usize, (y+j) as usize));
+                // if the pixel is in bounds and has the same value then push it onto the stack
+                if in_bounds(x+i, y+j, width, height) && im[(y+j) as usize][(x+i) as usize] == val {
+                    im[(y+j) as usize][(x+i) as usize] = target_value;
+                    stack.push(((x+i) as usize, (y+j) as usize));
                 }
             }
         }
     }
-    if n != road_value && count < size_threshold {
-        //if it's smaller than the threshold value then kill it
+
+    //if it's smaller than the threshold value then kill it
+    if target_value != road_value && count < size_threshold {
         _floodfill(im, y, x, road_value, growth, size_threshold, road_value);
     }
 }
 
+
+/// calculates where a given x,y coordinates are in bounds
+fn in_bounds(x:i32, y:i32, width:i32, height:i32) -> bool {
+    x >= 0 && x < width && y >= 0 && y < height
+}
+
+
+/// saves an im: Vec<Vec<u32>> as a textfile with a given name
 fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
     // collect output into a string
     let output = 
@@ -261,6 +314,7 @@ fn save_as_textfile(im: &Vec<Vec<u32>>, output_filename: &str) {
 }
 
 
+/// saves a Vec<Vec<u32>> as a image with a given name
 fn save_as_image(im: &Vec<Vec<u32>>, output_filename: &str, road_value: u32) {
     let height = im.len() as u32;
     let width = im[0].len() as u32;
