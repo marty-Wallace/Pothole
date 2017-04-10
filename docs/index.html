@@ -83,7 +83,7 @@
         <section >
           <div class="aligncenter wrap aligncenter">
             <h1>Visualizing the initial data I</h1>
-            <p>Data first comes in as ASCII in form like this, where in this case 127 represent a standard road pixel and a non-zero value is a non-standard road pixel (crack, hole, noise, etc..)</p>
+            <p>Data first comes in as ASCII in form like this, where in this case 127 represents a standard road pixel and a zero value is a non-standard road pixel (crack, hole, noise, etc..)</p>
             <img src="static/images/ascii.png" alt="Untouched classified"/>
           </div>
           <div class="wrap">
@@ -118,7 +118,7 @@
           <div class="aligncenter wrap aligncenter">
             <h1>Filtering out the noise I</h1>
             <p>To filter out the noise I use an algorithm I like to call 'floodsame'. </p>
-            <p>The floodsame process works like so. Logically group non-road pixels using a growth factor. The growth factor is the number of road pixels in between two non-road pixels which causes a break in the grouping.</p>
+            <p>The floodsame process works like so. First, logically group non-road pixels using a growth factor, which is the number of allowed road pixels in between two non-road pixels.</p>
             <div class="grid">
                 <div class="column">
                     <h3>Growth of 1</h3>   
@@ -135,8 +135,8 @@
         <section >
           <div class="aligncenter wrap aligncenter">
             <h1>Filtering out the noise II</h1>
-            <p>As the floodsame algorithm is grouping it also applies a theshold value to the size of a grouping. If a group is less than the threshold it is removed and converted to road pixels. </p>
-            <p>The floodsame can be applied in iterations using various levels of 'growth' and 'threshold' to filter out different sizes of noise. The numbers to use for threshold are not well defined and have been found through trial and error.</p>
+            <p>Secondly, as the floodsame algorithm is creating groups it also applies a threshold value to the size of a grouping. If the size of a group (number of pixels) is less than the threshold it is removed and converted to road pixels. </p>
+            <p>The floodsame can be applied in iterations using various levels of 'growth' and 'threshold' to filter out different sizes of noise. The numbers to use for growth and threshold are not well defined and have been found through trial and error.</p>
             <div class="grid">
                 <div class="column">
                     
@@ -155,7 +155,7 @@
         <section >
           <div class="aligncenter wrap aligncenter">
             <h1>Adjusting logical groupings</h1>
-            <p>Logical groupings are extended using nearly the same concept. A growth factor is applied to a floodfill algorithm. Groups within a certain range are grouped together and given a group ID. In this way they can be exported back to an ASCII file or visualized.</p>
+            <p>Logical groupings are extended using nearly the same concept. A growth factor is applied to a floodfill algorithm. Groups within a certain range are grouped together and given a group ID. In this way they can be exported back to an ASCII file or visualized by applying a color to each logical grouping.</p>
             <div class="grid">
                 <div class="column">
 
