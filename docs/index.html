@@ -74,7 +74,7 @@
 
         <section class="aligncenter">
           <div class="wrap">
-            <strong><h1 class="text fadeIn slow">Pothole</h1></strong>
+            <h1 class="text fadeIn slow">Pothole</h1>
             <p>A short description of the algorithms used in this project to detect cracks and potholes in data.</p>
             <img src="static/images/putpixel.png" alt="Pothole Image" class="fadeInUp"/>
           </div>
@@ -150,6 +150,31 @@
             </div>
           </div>
         </section>
+
+
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Pseudocode for floodsame</h1>
+            <pre>
+
+define function floodsame(pixel, value, growth):
+    set pixel as processed
+    set pixel's number as value
+    for each otherpixel within growth_distance of pixel:
+        if otherpixel is unprocessed:
+            floodsame(otherpixel, value, growth)
+
+set value = (largest pixel value in image) + 1
+for each pixel in image:
+    if pixel has not been processed and pixel value is not road_value:
+        floodsame(pixel, value, growth)
+        if number of pixels affected by floodsame is less than threshold:
+            # fill the grouping with the road_value
+            floodsame(pixel, road_value, growth)
+
+            </pre>
+          </div>
+        </section>
         
         
         <section >
@@ -171,7 +196,65 @@
           </div>
         </section>
 
-        section
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Pseudocode for floodfill</h1>
+            <pre>
+
+define function floodfill(pixel, value, growth):
+    set pixel as processed
+    set pixel's number as value
+    for each otherpixel within growth_distance of pixel:
+        if otherpixel is unprocessed:
+            floodsame(otherpixel, value, growth)
+
+
+value = (largest value in image + 1)
+for each pixel in image:
+    if pixel has not been processed and pixel value is not road_value:
+        floodsame(pixel, value, growth)
+            # increment value to a new group ID
+            value = value + 1
+
+            </pre>
+          </div>
+        </section>
+
+        
+        <section >
+          <div class="aligncenter aligncenter">
+            <h1>Examples I</h1>
+            <div class="grid">
+                
+                 <div class="column">
+                     <h3>Before</h3>   
+                    <img src="static/images/before1.png"  alt="Before 1"/>
+                 </div>
+                <div class="column">
+                     <h3>After</h3>   
+                     <img src="static/images/after1.png" alt="After 1"/>
+                </div>
+            </div>
+          </div>
+        </section>
+
+
+        <section >
+          <div class="aligncenter aligncenter">
+            <h1>Examples II</h1>
+            <div class="grid">
+                
+                 <div class="column">
+                     <h3>Before</h3>   
+                    <img src="static/images/before2.png"  alt="Before 2"/>
+                 </div>
+                <div class="column">
+                     <h3>After</h3>   
+                     <img src="static/images/after2.png" alt="After 2"/>
+                </div>
+            </div>
+          </div>
+        </section>
 
       </article>
     </main>
