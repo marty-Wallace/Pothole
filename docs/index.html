@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en" > <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- SEO -->
+    <title>Pothole</title>
+    <meta name="description" content="Description of Pothole Algorithm.">
+
+    <!-- URL CANONICAL -->
+    <link rel="canonical" href="http://marty-Wallace.github.io/Pothole/" >
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,700,700i%7CMaitree:200,300,400,600,700&amp;subset=latin-ext" rel="stylesheet">
+
+    <!-- CSS Base -->
+    <link rel="stylesheet" type='text/css' media='all' href="static/css/base.css">
+
+    <!-- CSS Colors -->
+    <link rel="stylesheet" type='text/css' media='all' href="static/css/colors.css">
+
+    <!-- Optional - CSS SVG Icons (Font Awesome) -->
+    <link rel="stylesheet" type='text/css' media='all' href="static/css/svg-icons.css">
+
+
+    <!-- FACEBOOK -->
+    <meta property="og:url" content="/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Pothole" /> <!-- EDIT -->
+    <meta property="og:description" content="Pothole"> <!-- EDIT -->
+    <meta property="og:updated_time" content="2017-01-04T17:25:31"> <!-- EDIT -->
+    <meta property="og:image" content="static/images/share-webslides.jpg" > <!-- EDIT -->
+
+    <!-- TWITTER -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@webslides"> <!-- EDIT -->
+    <meta name="twitter:creator" content="@"> <!-- EDIT -->
+    <meta name="twitter:title" content="Pothole"> <!-- EDIT -->
+    <meta name="twitter:description" content="Pothole"> <!-- EDIT -->
+    <meta name="twitter:image" content="static/images/share-webslides.jpg"> <!-- EDIT -->
+
+    <!-- FAVICONS -->
+    <link rel="shortcut icon" sizes="16x16" href="static/images/favicons/favicon.png">
+    <link rel="shortcut icon" sizes="32x32" href="static/images/favicons/favicon-32.png">
+    <link rel="apple-touch-icon icon" sizes="76x76" href="static/images/favicons/favicon-76.png">
+    <link rel="apple-touch-icon icon" sizes="120x120" href="static/images/favicons/favicon-120.png">
+    <link rel="apple-touch-icon icon" sizes="152x152" href="static/images/favicons/favicon-152.png">
+    <link rel="apple-touch-icon icon" sizes="180x180" href="static/images/favicons/favicon-180.png">
+    <link rel="apple-touch-icon icon" sizes="192x192" href="static/images/favicons/favicon-192.png">
+
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#333333">
+  </head>
+  <body>
+    <header role="banner">
+      <nav role="navigation">
+        <p class="logo"><a href="#slide=1" title="WebSlides">Pothole</a></p>
+        <ul>
+          <li class="github">
+            <a rel="external" href="https://github.com/marty-Wallace/Pothole" title="Github">
+              <svg class="fa-github">
+                <use xlink:href="#fa-github"></use>
+              </svg>
+              <em>Slides</em>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main role="main">
+      <article id="webslides" >
+
+        <section class="aligncenter">
+          <div class="wrap">
+            <strong><h1 class="text fadeIn slow">Pothole</h1></strong>
+            <p>A short description of the algorithms used in this project to detect cracks and potholes in data.</p>
+            <img src="static/images/putpixel.png" alt="Pothole Image" class="fadeInUp"/>
+          </div>
+        </section>
+        
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Visualizing the initial data I</h1>
+            <p>Data first comes in as ASCII in form like this, where in this case 127 represent a standard road pixel and a non-zero value is a non-standard road pixel (crack, hole, noise, etc..)</p>
+            <img src="static/images/ascii.png" alt="Untouched classified"/>
+          </div>
+          <div class="wrap">
+          </div>
+          </div>
+        </section>
+
+
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Visualizing the initial data II</h1>
+            <p>Non road pixels can be manually grouped logically like so (in this case groups are defined as non-road pixels connected to the left,right,up,down).</p>
+            <img src="static/images/ascii2.png" alt="Handdrawn classified"/>
+          </div>
+          <div class="wrap">
+          </div>
+          </div>
+        </section>
+
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Visualizing the initial data III</h1>
+            <p>Using the same concept, a large dataset can be programmatically visualized to look like this, where a colour is applied to each connected grouping of non-road pixels. When looking at the data this is clearly not an effective process since one road crack is grouped into hundreds of seperate logical groupings. Additionally many groupings are formed from noise in the picture.</p>
+            <img src="static/images/untouched_2v2.png" alt="Untouched classified"/>
+          </div>
+          <div class="wrap">
+          </div>
+          </div>
+        </section>
+
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Filtering out the noise I</h1>
+            <p>To filter out the noise I use an algorithm I like to call 'floodsame'. </p>
+            <p>The floodsame process works like so. Logically group non-road pixels using a growth factor. The growth factor is the number of road pixels in between two non-road pixels which causes a break in the grouping.</p>
+            <div class="grid">
+                <div class="column">
+                    <h3>Growth of 1</h3>   
+                    <img src="static/images/ascii2.png" alt="Hand drawn Classification"/>
+                </div>
+                <div class="column">
+                    <h3>Growth of 2</h3>
+                    <img src="static/images/ascii3.png" alt="Hand drawn with a growth of 2"/>
+                </div>
+            </div>
+          </div>
+        </section>
+
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Filtering out the noise II</h1>
+            <p>As the floodsame algorithm is grouping it also applies a theshold value to the size of a grouping. If a group is less than the threshold it is removed and converted to road pixels. </p>
+            <p>The floodsame can be applied in iterations using various levels of 'growth' and 'threshold' to filter out different sizes of noise. The numbers to use for threshold are not well defined and have been found through trial and error.</p>
+            <div class="grid">
+                <div class="column">
+                    
+                 <h3>Before floodsame</h3>   
+                <img src="static/images/prefloodsame.png" alt="Before Floodsame"/>
+                </div>
+                <div class="column">
+                 <h3>After floodsame</h3>   
+                <img src="static/images/floodsame.png"  alt="After Floodsame"/>
+                </div>
+            </div>
+          </div>
+        </section>
+        
+        
+        <section >
+          <div class="aligncenter wrap aligncenter">
+            <h1>Adjusting logical groupings</h1>
+            <p>Logical groupings are extended using nearly the same concept. A growth factor is applied to a floodfill algorithm. Groups within a certain range are grouped together and given a group ID. In this way they can be exported back to an ASCII file or visualized.</p>
+            <div class="grid">
+                <div class="column">
+
+                    
+                 <h3>Before floodfill</h3>   
+                <img src="static/images/floodsame.png"  alt="Before Floodfill"/>
+                </div>
+                <div class="column">
+                 <h3>After floodfill</h3>   
+                 <img src="static/images/floodfill.png" alt="After Floodfill"/>
+                </div>
+            </div>
+          </div>
+        </section>
+
+        section
+
+      </article>
+    </main>
+
+    <!-- Required -->
+    <script src="static/js/webslides.min.js"></script>
+    <script>
+      window.ws = new WebSlides(); 
+    </script>
+    <!-- OPTIONAL - svg-icons.js (fontastic.me - Font Awesome as svg icons) -->
+    <script defer src="static/js/svg-icons.js"></script>
+
+  </body>
