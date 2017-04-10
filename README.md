@@ -1,7 +1,9 @@
 # Pothole
 A set of python scripts and a Rust binary application for detecting potholes and road cracks. 
 
-![putpixel](https://github.com/marty-Wallace/Pothole/blob/master/images/road/road_blur35_floodfill_1.png)
+A slideshow explaining and demonstrating the algorithms is available at https://marty-wallace.github.io/Pothole/
+
+![comparison](https://github.com/marty-Wallace/Pothole/blob/master/images/comparison.png)
 
 ### Python
 To run the python scripts simply run `python pothole.py --help`
